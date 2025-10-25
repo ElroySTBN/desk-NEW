@@ -7,6 +7,8 @@ import Auth from "./pages/Auth";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
+import NewClient from "./pages/NewClient";
+import ClientDetails from "./pages/ClientDetails";
 import Invoices from "./pages/Invoices";
 import Templates from "./pages/Templates";
 import NotFound from "./pages/NotFound";
@@ -22,10 +24,12 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/templates" element={<Templates />} />
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/clients" element={<Clients />} />
+        <Route path="/clients/new" element={<NewClient />} />
+        <Route path="/clients/:id" element={<ClientDetails />} />
+        <Route path="/invoices" element={<Invoices />} />
+        <Route path="/templates" element={<Templates />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
