@@ -9,23 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 
-// Configuration des identifiants autorisés
-// Pour ajouter un utilisateur, ajoutez une entrée ici avec identifiant + email Supabase
-const AUTHORIZED_USERS = [
-  {
-    username: "elroy",
-    email: "elroy@raisemed.ia",
-    displayName: "Elroy SITBON"
-  },
-  {
-    username: "admin",
-    email: "admin@raisemed.ia", 
-    displayName: "Administrateur"
-  }
-];
-
 const Auth = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -36,34 +21,26 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Vérifier si l'identifiant est autorisé
-      const authorizedUser = AUTHORIZED_USERS.find(u => u.username === username);
-      
-      if (!authorizedUser) {
-        throw new Error("Identifiant non reconnu");
-      }
-
-      // Tentative de connexion avec l'email correspondant
-      const { error } = await supabase.auth.signInWithPassword({
-        email: authorizedUser.email,
+      // Connexion directe avec email et mot de passe
+      const { error, data } = await supabase.auth.signInWithPassword({
+        email,
         password,
       });
 
       if (error) {
-        // Si le compte n'existe pas, proposer de le créer automatiquement
         if (error.message.includes("Invalid login credentials")) {
-          throw new Error("Mot de passe incorrect");
+          throw new Error("Email ou mot de passe incorrect");
         }
         throw error;
       }
 
-      // Stocker l'identifiant dans localStorage pour affichage
-      localStorage.setItem("raisemed_username", username);
-      localStorage.setItem("raisemed_displayName", authorizedUser.displayName);
+      // Stocker l'email dans localStorage pour affichage
+      localStorage.setItem("raisemed_email", email);
+      localStorage.setItem("raisemed_displayName", email.split('@')[0]);
 
       toast({ 
         title: "Connexion réussie",
-        description: `Bienvenue ${authorizedUser.displayName}`
+        description: `Bienvenue !`
       });
       navigate("/");
     } catch (error: any) {
@@ -91,16 +68,16 @@ const Auth = () => {
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Identifiant</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Votre identifiant"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="votre.email@example.com"
                 required
                 disabled={loading}
-                autoComplete="username"
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
