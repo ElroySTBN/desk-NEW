@@ -8,7 +8,10 @@ import { ClientInfoTab } from "@/components/client/ClientInfoTab";
 import { ClientKPIsTab } from "@/components/client/ClientKPIsTab";
 import { ClientInvoicesTab } from "@/components/client/ClientInvoicesTab";
 import { ClientDocumentsTab } from "@/components/client/ClientDocumentsTab";
-import { ClientCommunicationsTab } from "@/components/client/ClientCommunicationsTab";
+import { ClientEmailsTab } from "@/components/client/ClientEmailsTab";
+import { ClientOnboardingTab } from "@/components/client/ClientOnboardingTab";
+import { ClientTasksTab } from "@/components/client/ClientTasksTab";
+import { QuickEmailActions } from "@/components/client/QuickEmailActions";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Client = Tables<"clients">;
@@ -66,10 +69,18 @@ const ClientDetails = () => {
         </div>
       </div>
 
+      <QuickEmailActions
+        clientId={client.id}
+        clientName={client.company || client.name}
+        clientEmail={client.email}
+      />
+
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="info">Informations</TabsTrigger>
-          <TabsTrigger value="kpis">Résultats & KPIs</TabsTrigger>
+          <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
+          <TabsTrigger value="tasks">Tâches</TabsTrigger>
+          <TabsTrigger value="kpis">KPIs</TabsTrigger>
           <TabsTrigger value="invoices">Factures</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
@@ -79,8 +90,20 @@ const ClientDetails = () => {
           <ClientInfoTab client={client} onUpdate={fetchClient} />
         </TabsContent>
 
+        <TabsContent value="onboarding">
+          <ClientOnboardingTab clientId={client.id} />
+        </TabsContent>
+
+        <TabsContent value="tasks">
+          <ClientTasksTab clientId={client.id} />
+        </TabsContent>
+
         <TabsContent value="kpis">
-          <ClientKPIsTab clientId={client.id} />
+          <ClientKPIsTab 
+            clientId={client.id} 
+            clientName={client.name}
+            clientCompany={client.company || undefined}
+          />
         </TabsContent>
 
         <TabsContent value="invoices">
@@ -92,7 +115,7 @@ const ClientDetails = () => {
         </TabsContent>
 
         <TabsContent value="communications">
-          <ClientCommunicationsTab clientId={client.id} />
+          <ClientEmailsTab clientId={client.id} />
         </TabsContent>
       </Tabs>
     </div>

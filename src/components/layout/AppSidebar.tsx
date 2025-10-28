@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, FileText, Mail, LogOut, Menu } from "lucide-react";
+import { Home, Users, FileText, Mail, LogOut, Settings, UserPlus } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,14 +13,17 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
+import BrandLogo from "@/components/BrandLogo";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Clients", url: "/clients", icon: Users },
+  { title: "Onboarding", url: "/onboarding", icon: UserPlus },
   { title: "Factures", url: "/invoices", icon: FileText },
   { title: "Templates", url: "/templates", icon: Mail },
+  { title: "Paramètres", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -37,16 +40,21 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <Sidebar className={isCollapsed ? "w-14" : "w-60"}>
-      <div className="h-full flex flex-col">
-        <div className="p-4 border-b border-sidebar-border flex items-center justify-between">
-          {!isCollapsed && (
-            <h2 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              RaiseMed OS
-            </h2>
-          )}
-          <SidebarTrigger className="ml-auto" />
-        </div>
+    <Sidebar collapsible="icon">
+        <div className="h-full flex flex-col">
+          <div className="p-4 border-b border-sidebar-border flex items-center justify-between gap-4">
+            {!isCollapsed ? (
+              <>
+                <BrandLogo className="h-12 w-auto object-contain" />
+                <SidebarTrigger />
+              </>
+            ) : (
+              <div className="w-full flex flex-col items-center gap-2">
+                <SidebarTrigger />
+                <BrandLogo className="h-8 w-8 object-contain" />
+              </div>
+            )}
+          </div>
 
         <SidebarContent className="flex-1">
           <SidebarGroup>

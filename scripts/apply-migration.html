@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration Base de Données - RaiseMed OS</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border: 2px solid #2196F3;
+            color: #0d47a1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .info-box ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        .info-box li {
+            margin-bottom: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .message {
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Migration Base de Données</h1>
+        <p class="subtitle">Ajout des champs fiscaux (SIRET, TVA, Adresse complète)</p>
+
+        <div class="info-box">
+            <strong>📋 Cette migration va ajouter :</strong>
+            <ul>
+                <li>Champ <code>siret</code> - Numéro SIRET du client</li>
+                <li>Champ <code>tva_number</code> - Numéro de TVA intracommunautaire</li>
+                <li>Champ <code>billing_address</code> - Adresse de facturation (rue)</li>
+                <li>Champ <code>postal_code</code> - Code postal</li>
+                <li>Champ <code>city</code> - Ville</li>
+            </ul>
+            <br>
+            <strong>⚠️ Important :</strong> Connectez-vous d'abord sur RaiseMed OS avant d'exécuter cette migration.
+        </div>
+
+        <button id="migrateBtn" onclick="applyMigration()">
+            🚀 Appliquer la migration
+        </button>
+
+        <div class="loader" id="loader"></div>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://qpbtmqgsnqnbkzxopaiv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwYnRtcWdzbnFuYmt6eG9wYWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzNzIzMTQsImV4cCI6MjA3Njk0ODMxNH0.eKUEg-BytmY3u9yNIkDmt5vTk8ZU5_2jYrj5jbCNt2k';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+        }
+
+        function showLoader(show) {
+            document.getElementById('loader').style.display = show ? 'block' : 'none';
+        }
+
+        async function applyMigration() {
+            const migrateBtn = document.getElementById('migrateBtn');
+
+            // Vérifier que l'utilisateur est connecté
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                showMessage('❌ Vous devez être connecté à RaiseMed OS pour exécuter cette migration.<br>Connectez-vous sur <a href="http://localhost:8080" target="_blank">http://localhost:8080</a> puis revenez ici.', 'error');
+                return;
+            }
+
+            migrateBtn.disabled = true;
+            migrateBtn.textContent = 'Migration en cours...';
+            showLoader(true);
+            showMessage('🔄 Application de la migration...', 'info');
+
+            const migrationSQL = `
+                -- Add fiscal information fields to clients table
+                ALTER TABLE public.clients 
+                  ADD COLUMN IF NOT EXISTS siret TEXT,
+                  ADD COLUMN IF NOT EXISTS tva_number TEXT,
+                  ADD COLUMN IF NOT EXISTS billing_address TEXT,
+                  ADD COLUMN IF NOT EXISTS postal_code TEXT,
+                  ADD COLUMN IF NOT EXISTS city TEXT;
+            `;
+
+            try {
+                // Exécuter la migration SQL
+                const { data, error } = await supabase.rpc('exec_sql', { 
+                    sql: migrationSQL 
+                });
+
+                if (error) {
+                    // Si la fonction exec_sql n'existe pas, on essaie une autre approche
+                    if (error.message.includes('function') || error.code === 'PGRST202') {
+                        showMessage(
+                            `⚠️ <strong>Migration nécessaire via le Dashboard Supabase</strong><br><br>
+                            La migration automatique n'est pas disponible. Veuillez :<br><br>
+                            <strong>1.</strong> Aller sur <a href="https://supabase.com/dashboard/project/qpbtmqgsnqnbkzxopaiv/editor" target="_blank">le SQL Editor de Supabase</a><br>
+                            <strong>2.</strong> Coller et exécuter ce code SQL :<br><br>
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 12px;">ALTER TABLE public.clients 
+  ADD COLUMN IF NOT EXISTS siret TEXT,
+  ADD COLUMN IF NOT EXISTS tva_number TEXT,
+  ADD COLUMN IF NOT EXISTS billing_address TEXT,
+  ADD COLUMN IF NOT EXISTS postal_code TEXT,
+  ADD COLUMN IF NOT EXISTS city TEXT;</pre><br>
+                            <strong>3.</strong> Une fois terminé, vous pourrez importer vos clients.`,
+                            'info'
+                        );
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    showMessage(
+                        `✅ <strong>Migration réussie !</strong><br><br>
+                        Les champs suivants ont été ajoutés à la table clients :<br>
+                        • SIRET<br>
+                        • Numéro de TVA<br>
+                        • Adresse de facturation<br>
+                        • Code postal<br>
+                        • Ville<br><br>
+                        🎉 Vous pouvez maintenant <a href="import-clients.html">importer vos clients</a> avec toutes leurs informations fiscales.`,
+                        'success'
+                    );
+                }
+            } catch (err) {
+                console.error('Erreur migration:', err);
+                showMessage(
+                    `⚠️ <strong>Migration manuelle nécessaire</strong><br><br>
+                    Veuillez exécuter cette migration manuellement :<br><br>
+                    <strong>1.</strong> Allez sur <a href="https://supabase.com/dashboard/project/qpbtmqgsnqnbkzxopaiv/editor" target="_blank">le SQL Editor</a><br>
+                    <strong>2.</strong> Copiez le fichier : <code>supabase/migrations/20251026120000_add_client_fiscal_info.sql</code><br>
+                    <strong>3.</strong> Exécutez-le dans le SQL Editor<br><br>
+                    <strong>Détails de l'erreur :</strong> ${err.message}`,
+                    'error'
+                );
+            } finally {
+                showLoader(false);
+                migrateBtn.disabled = false;
+                migrateBtn.textContent = '🚀 Appliquer la migration';
+            }
+        }
+    </script>
+</body>
+</html>
+

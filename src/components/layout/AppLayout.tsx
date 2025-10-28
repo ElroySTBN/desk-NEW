@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Loader2 } from "lucide-react";
 
@@ -53,13 +53,16 @@ const AppLayout = () => {
   }
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <Outlet />
-        </main>
-      </div>
+    <SidebarProvider
+      style={{
+        "--sidebar-width": "20rem",
+        "--sidebar-width-icon": "5rem",
+      } as React.CSSProperties}
+    >
+      <AppSidebar />
+      <SidebarInset>
+        <Outlet />
+      </SidebarInset>
     </SidebarProvider>
   );
 };

@@ -6,11 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { downloadMonthlyReportPDF } from "@/lib/reportGenerator";
 
 interface ClientKPIsTabProps {
   clientId: string;
+  clientName?: string;
+  clientCompany?: string;
 }
 
 interface KPI {
@@ -18,7 +21,7 @@ interface KPI {
   value: string;
 }
 
-export const ClientKPIsTab = ({ clientId }: ClientKPIsTabProps) => {
+export const ClientKPIsTab = ({ clientId, clientName, clientCompany }: ClientKPIsTabProps) => {
   const { toast } = useToast();
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -132,6 +135,27 @@ export const ClientKPIsTab = ({ clientId }: ClientKPIsTabProps) => {
     { value: 11, label: "Novembre" },
     { value: 12, label: "Décembre" },
   ];
+
+  const handleGenerateReport = () => {
+    const monthLabel = months.find(m => m.value === month)?.label || "";
+    
+    downloadMonthlyReportPDF({
+      client_name: clientName || "Client",
+      client_company: clientCompany || undefined,
+      month: monthLabel,
+      year: year,
+      actions: data.actions,
+      results: data.results,
+      kpis: data.kpis,
+      problems: data.problems,
+      improvements: data.improvements,
+    });
+
+    toast({
+      title: "Rapport généré",
+      description: `Rapport mensuel ${monthLabel} ${year} téléchargé`,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -262,7 +286,11 @@ export const ClientKPIsTab = ({ clientId }: ClientKPIsTabProps) => {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+        <Button onClick={handleGenerateReport} variant="outline" size="lg" className="gap-2">
+          <FileDown className="h-5 w-5" />
+          Générer Rapport PDF
+        </Button>
         <Button onClick={handleSave} size="lg">
           Enregistrer le mois
         </Button>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Clients - RaiseMed OS</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            color: #667eea;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+        button {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .message {
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .instructions code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .example {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        .progress {
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📥 Import de Clients</h1>
+        <p class="subtitle">Importez tous vos clients existants en une seule fois</p>
+
+        <div class="instructions">
+            <strong>📋 Format attendu :</strong> Chaque ligne = 1 client<br>
+            <strong>Ordre des colonnes :</strong> N° Client | Type | Raison Sociale | Adresse | CP | Ville | Tél | Mobile | TVA | Email | SIRET | Montant | Date | Statut | Remarques<br><br>
+            <strong>Séparateur :</strong> <code>|</code> (pipe)<br>
+            <strong>Type :</strong> Professionnel ou Particulier<br>
+            <strong>Statut :</strong> prospect, actif, inactif, churned<br>
+            <strong>Note :</strong> Certains champs peuvent être vides (laisser vide entre deux |)<br><br>
+            <div class="example">
+C00011|Professionnel|Palma Speak|46 rue Volta|75003|Paris|+33 1 42 68 25 25||FR07519367551|s.chiang@accom.fr|51936755100024|900|2024-08-01|actif|Abonnement Semestriel
+C00032|Professionnel|HF AUDITION|149 rue du Rouet|13008|Marseille|||FR83937966000|hfaudition13@gmail.com|93796600000013|115|2025-01-01|actif|Frais d'intégration étalés
+C00034|Professionnel|SIMON BENOIT|1137 rue Pasteur|54230|Neuves-Maisons||+33 6 09 42 85 53|FR23379002801|bs@lavauximmobilier.fr|37900280100072|150|2025-02-01|actif|Campagne Meta Ads
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Collez vos données ici :</h2>
+            <textarea id="clientData" placeholder="Collez vos données ici... (une ligne par client)"></textarea>
+        </div>
+
+        <button id="importBtn" onclick="importClients()">
+            🚀 Importer les clients
+        </button>
+
+        <div class="progress" id="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+        </div>
+
+        <div id="message"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://qpbtmqgsnqnbkzxopaiv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwYnRtcWdzbnFuYmt6eG9wYWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzNzIzMTQsImV4cCI6MjA3Njk0ODMxNH0.eKUEg-BytmY3u9yNIkDmt5vTk8ZU5_2jYrj5jbCNt2k';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+        }
+
+        function updateProgress(current, total) {
+            const progressDiv = document.getElementById('progress');
+            const progressFill = document.getElementById('progressFill');
+            progressDiv.style.display = 'block';
+            const percent = Math.round((current / total) * 100);
+            progressFill.style.width = percent + '%';
+            progressFill.textContent = `${current}/${total} clients importés`;
+        }
+
+        async function importClients() {
+            const data = document.getElementById('clientData').value.trim();
+            const importBtn = document.getElementById('importBtn');
+
+            if (!data) {
+                showMessage('Veuillez coller vos données', 'error');
+                return;
+            }
+
+            // Vérifier que l'utilisateur est connecté
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                showMessage('❌ Vous devez être connecté à RaiseMed OS pour importer des clients.<br>Connectez-vous sur http://localhost:8080 puis revenez ici.', 'error');
+                return;
+            }
+
+            importBtn.disabled = true;
+            importBtn.textContent = 'Import en cours...';
+            showMessage('🔄 Import en cours...', 'info');
+
+            const lines = data.split('\n').filter(line => line.trim());
+            const clients = [];
+            const errors = [];
+
+            // Parser les données
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const parts = line.split('|').map(p => p.trim());
+                
+                if (parts.length < 14) {
+                    errors.push(`Ligne ${i + 1}: Format incorrect (${parts.length} colonnes, minimum 14 requises)`);
+                    continue;
+                }
+
+                const [clientNumber, clientType, companyName, address, postalCode, city, phone, phoneMobile, tvaNumber, email, siret, monthlyAmount, startDate, status, remarks] = parts;
+
+                // Construire les notes
+                let notes = '';
+                if (clientNumber) notes += `N° Client: ${clientNumber}`;
+                if (remarks) {
+                    if (notes) notes += '\n\n';
+                    notes += remarks;
+                }
+
+                clients.push({
+                    user_id: user.id,
+                    name: companyName || 'Client sans nom',
+                    company: companyName || null,
+                    email: email || null,
+                    phone: phone || null,
+                    phone_mobile: phoneMobile || null,
+                    billing_address: address || null,
+                    postal_code: postalCode || null,
+                    city: city || null,
+                    siret: siret || null,
+                    tva_number: tvaNumber || null,
+                    client_type: clientType || 'Professionnel',
+                    notes: notes || null,
+                    monthly_amount: monthlyAmount ? parseFloat(monthlyAmount) : null,
+                    start_date: startDate || null,
+                    status: status || 'prospect',
+                });
+            }
+
+            if (clients.length === 0) {
+                showMessage('❌ Aucun client valide trouvé. Vérifiez le format.', 'error');
+                importBtn.disabled = false;
+                importBtn.textContent = '🚀 Importer les clients';
+                return;
+            }
+
+            // Importer les clients
+            let imported = 0;
+            let failed = 0;
+
+            for (let i = 0; i < clients.length; i++) {
+                try {
+                    const { error } = await supabase
+                        .from('clients')
+                        .insert(clients[i]);
+
+                    if (error) {
+                        console.error('Erreur import:', error);
+                        failed++;
+                        errors.push(`Client "${clients[i].name}": ${error.message}`);
+                    } else {
+                        imported++;
+                    }
+
+                    updateProgress(i + 1, clients.length);
+                    
+                    // Petit délai pour éviter de surcharger l'API
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (err) {
+                    failed++;
+                    errors.push(`Client "${clients[i].name}": ${err.message}`);
+                }
+            }
+
+            // Résultat
+            let resultMessage = `<strong>✅ Import terminé !</strong><br><br>`;
+            resultMessage += `✅ <strong>${imported}</strong> client(s) importé(s) avec succès<br>`;
+            
+            if (failed > 0) {
+                resultMessage += `❌ <strong>${failed}</strong> échec(s)<br><br>`;
+                resultMessage += `<strong>Détails des erreurs :</strong><br>`;
+                resultMessage += errors.slice(0, 10).map(e => `• ${e}`).join('<br>');
+                if (errors.length > 10) {
+                    resultMessage += `<br>... et ${errors.length - 10} autres erreurs`;
+                }
+                showMessage(resultMessage, 'error');
+            } else {
+                resultMessage += `<br>🎉 Tous vos clients sont maintenant dans RaiseMed OS !<br>`;
+                resultMessage += `➡️ Allez sur <a href="http://localhost:8080/clients" target="_blank">http://localhost:8080/clients</a> pour les voir`;
+                showMessage(resultMessage, 'success');
+            }
+
+            importBtn.disabled = false;
+            importBtn.textContent = '🚀 Importer les clients';
+        }
+    </script>
+</body>
+</html>
+

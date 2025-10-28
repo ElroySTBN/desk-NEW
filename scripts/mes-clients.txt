@@ -1,0 +1,7 @@
+C00011|Professionnel|Palma Speak|46 rue Volta|75003|Paris|+33 1 42 68 25 25||FR07519367551|s.chiang@accom.fr|51936755100024|900|2024-08-01|actif|Abonnement Semestriel
+C00029|Professionnel|Ethan Ayache|17 rue Mesnil|75016|Paris|+33 7 68 99 70 98||FR03981645914|ethanayache.di@gmail.com|98164591400012|0|2024-01-01|inactif|
+C00031|Professionnel|Jobert Immobilier|2 avenue de Joinville|94130|Nogent-sur-Marne|+33 1 41 95 15 15||FR79352855241||35285524100027|0|2024-01-01|inactif|
+C00032|Professionnel|HF AUDITION|149 rue du Rouet|13008|Marseille|||FR83937966000|hfaudition13@gmail.com|93796600000013|115|2025-01-01|actif|Frais d'intégration étalés sur 4 mois
+C00033|Professionnel|Global Views|7 rue de la Ponche|83990|Saint-Tropez|||FR83982218273|yaronsitbon5@gmail.com|98221827300018|150|2025-01-01|actif|
+C00034|Professionnel|SIMON BENOIT|1137 rue Pasteur|54230|Neuves-Maisons||+33 6 09 42 85 53|FR23379002801|bs@lavauximmobilier.fr|37900280100072|150|2025-02-01|actif|Campagne Meta Ads 500€ (100€ x 5 mois)
+C00035|Professionnel|FRANCE ENERGIE VERTE|32 rue Guy Moquet|92240|Malakoff|||FR39498397843|didierpariente@france-energieverte.fr|49839784300091|390|2025-01-01|actif|Frais d'intégration 1500€

@@ -65,7 +65,7 @@ export const ClientInvoicesTab = ({ clientId }: ClientInvoicesTabProps) => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Factures du client</CardTitle>
-        <Button className="gap-2" onClick={() => navigate(`/invoices/new?client=${clientId}`)}>
+        <Button className="gap-2" onClick={() => navigate(`/invoices`)}>
           <Plus className="h-4 w-4" />
           Nouvelle facture
         </Button>
