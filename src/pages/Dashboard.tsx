@@ -34,63 +34,80 @@ const Dashboard = () => {
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [todayActions, setTodayActions] = useState<UpcomingEvent[]>([]);
   const [processingAutomation, setProcessingAutomation] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStats();
-    fetchUpcomingEvents();
+    loadDashboardData();
   }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      await Promise.all([fetchStats(), fetchUpcomingEvents()]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchStats = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Active clients
-    const { count: activeCount } = await supabase
-      .from("clients")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "actif");
-
-    // Monthly revenue (invoices paid this month)
     const firstDayOfMonth = startOfMonth(new Date());
-    const { data: monthlyInvoices } = await supabase
-      .from("invoices")
-      .select("amount_ttc")
-      .eq("user_id", user.id)
-      .eq("status", "payee")
-      .gte("date", firstDayOfMonth.toISOString());
 
-    const monthlyRevenue = monthlyInvoices?.reduce((sum, inv) => sum + Number(inv.amount_ttc), 0) || 0;
+    // Optimisation : Faire toutes les requêtes en parallèle
+    const [
+      activeCountResult,
+      monthlyInvoicesResult,
+      allInvoicesResult,
+      pendingCountResult,
+      overdueCountResult
+    ] = await Promise.all([
+      // Active clients
+      supabase
+        .from("clients")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "actif"),
+      
+      // Monthly revenue
+      supabase
+        .from("invoices")
+        .select("amount_ttc")
+        .eq("user_id", user.id)
+        .eq("status", "payee")
+        .gte("date", firstDayOfMonth.toISOString()),
+      
+      // Total revenue
+      supabase
+        .from("invoices")
+        .select("amount_ttc")
+        .eq("user_id", user.id)
+        .eq("status", "payee"),
+      
+      // Pending invoices
+      supabase
+        .from("invoices")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "en_attente"),
+      
+      // Overdue invoices
+      supabase
+        .from("invoices")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "en_retard")
+    ]);
 
-    // Total revenue
-    const { data: allInvoices } = await supabase
-      .from("invoices")
-      .select("amount_ttc")
-      .eq("user_id", user.id)
-      .eq("status", "payee");
-
-    const totalRevenue = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_ttc), 0) || 0;
-
-    // Pending invoices
-    const { count: pendingCount } = await supabase
-      .from("invoices")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "en_attente");
-
-    // Overdue invoices
-    const { count: overdueCount } = await supabase
-      .from("invoices")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "en_retard");
+    const monthlyRevenue = monthlyInvoicesResult.data?.reduce((sum, inv) => sum + Number(inv.amount_ttc), 0) || 0;
+    const totalRevenue = allInvoicesResult.data?.reduce((sum, inv) => sum + Number(inv.amount_ttc), 0) || 0;
 
     setStats({
-      activeClients: activeCount || 0,
+      activeClients: activeCountResult.count || 0,
       monthlyRevenue,
       totalRevenue,
-      pendingInvoices: pendingCount || 0,
-      overdueInvoices: overdueCount || 0,
+      pendingInvoices: pendingCountResult.count || 0,
+      overdueInvoices: overdueCountResult.count || 0,
     });
   };
 
@@ -301,6 +318,27 @@ const Dashboard = () => {
       color: "text-destructive",
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="p-8 space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">Centre de Pilotage</h1>
+            <p className="text-muted-foreground mt-2">
+              Vue d'ensemble de RaiseMed.IA • {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Chargement du tableau de bord...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8">

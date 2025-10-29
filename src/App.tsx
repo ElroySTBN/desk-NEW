@@ -16,6 +16,14 @@ import Onboarding from "./pages/Onboarding";
 import CreateOnboarding from "./pages/CreateOnboarding";
 import OnboardingForm from "./pages/OnboardingForm";
 import OnboardingExport from "./pages/OnboardingExport";
+import ClientEmployees from "./pages/ClientEmployees";
+import ClientReviewSettings from "./pages/ClientReviewSettings";
+import ClientScanReports from "./pages/ClientScanReports";
+import ClientNegativeReviews from "./pages/ClientNegativeReviews";
+import FunnelSetup from "./pages/FunnelSetup";
+import FunnelContentFlow from "./pages/FunnelContentFlow";
+import ScanRedirect from "./pages/ScanRedirect";
+import ReviewFunnel from "./pages/ReviewFunnel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +41,12 @@ const App = () => (
         <Route path="/clients" element={<Clients />} />
         <Route path="/clients/new" element={<NewClient />} />
         <Route path="/clients/:id" element={<ClientDetails />} />
+        <Route path="/clients/:id/employees" element={<ClientEmployees />} />
+        <Route path="/clients/:id/review-settings" element={<ClientReviewSettings />} />
+        <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
+        <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
+        <Route path="/clients/:clientId/funnel-setup" element={<FunnelSetup />} />
+        <Route path="/clients/:clientId/funnel-content" element={<FunnelContentFlow />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/settings" element={<Settings />} />
@@ -40,8 +54,10 @@ const App = () => (
         <Route path="/onboarding/create" element={<CreateOnboarding />} />
         <Route path="/onboarding/export/:id" element={<OnboardingExport />} />
           </Route>
-          {/* Public onboarding form route (no layout) */}
+          {/* Public routes (no layout) */}
           <Route path="/onboarding/form/:id" element={<OnboardingForm />} />
+          <Route path="/scan/:employeeId" element={<ScanRedirect />} />
+          <Route path="/review/:clientId" element={<ReviewFunnel />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

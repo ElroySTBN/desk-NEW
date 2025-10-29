@@ -28,8 +28,8 @@ All colors MUST be HSL.
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
 
-    --accent: 271 91% 65%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 100% 96%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -55,7 +55,7 @@ All colors MUST be HSL.
     --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent: 210 100% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 221 83% 53%;
@@ -82,8 +82,8 @@ All colors MUST be HSL.
     --muted: 223 47% 11%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 271 91% 65%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 100% 20%;
+    --accent-foreground: 213 31% 91%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 213 31% 91%;
@@ -107,7 +107,7 @@ All colors MUST be HSL.
     --sidebar-foreground: 213 31% 91%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 28% 17%;
+    --sidebar-accent: 210 100% 20%;
     --sidebar-accent-foreground: 213 31% 91%;
     --sidebar-border: 215 28% 17%;
     --sidebar-ring: 221 83% 53%;
@@ -121,5 +121,64 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Amélioration du rendu des textes */
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Amélioration du rendu pour les menus déroulants et modals */
+  select,
+  [role="combobox"],
+  [role="listbox"],
+  [role="menu"],
+  [role="option"],
+  [data-radix-select-viewport],
+  [data-radix-select-item] {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    backface-visibility: hidden !important;
+    filter: none !important;
+  }
+  
+  /* Ne pas interférer avec le positionnement des menus */
+  [data-radix-select-content],
+  [data-radix-popper-content-wrapper],
+  [data-radix-dropdown-menu-content],
+  [data-radix-popover-content] {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    filter: none !important;
+  }
+  
+  /* Force le rendu net pour les portals */
+  [data-radix-portal] {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+  }
+  
+  /* Suppression du blur sur les animations */
+  [data-state="open"],
+  [data-state="closed"] {
+    filter: none !important;
+  }
+  
+  /* Correction du blur sur les éléments interactifs */
+  button,
+  a,
+  input,
+  textarea {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
   }
 }

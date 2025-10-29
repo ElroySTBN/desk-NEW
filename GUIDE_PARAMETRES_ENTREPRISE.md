@@ -280,3 +280,4 @@ doc.text(`SIRET: ${companySettings.siret}`, 20, 75);
 **Développé par** : Claude (Assistant IA)
 
 
+
