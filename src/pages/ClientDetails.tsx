@@ -13,6 +13,7 @@ import { ClientEmailsTab } from "@/components/client/ClientEmailsTab";
 import { ClientOnboardingTab } from "@/components/client/ClientOnboardingTab";
 import { ClientTasksTab } from "@/components/client/ClientTasksTab";
 import { QuickEmailActions } from "@/components/client/QuickEmailActions";
+import { ClientBrandDNA } from "@/components/client/ClientBrandDNA";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Client = Tables<"clients">;
@@ -139,8 +140,9 @@ const ClientDetails = () => {
       </div>
 
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="info">Informations</TabsTrigger>
+          <TabsTrigger value="brand-dna">Brand DNA</TabsTrigger>
           <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
           <TabsTrigger value="tasks">Tâches</TabsTrigger>
           <TabsTrigger value="kpis">KPIs</TabsTrigger>
@@ -151,6 +153,10 @@ const ClientDetails = () => {
 
         <TabsContent value="info">
           <ClientInfoTab client={client} onUpdate={fetchClient} />
+        </TabsContent>
+
+        <TabsContent value="brand-dna">
+          <ClientBrandDNA clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="onboarding">
