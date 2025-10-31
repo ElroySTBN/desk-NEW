@@ -210,7 +210,7 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">BABABABABA</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Centre de Pilotage</h1>
           <p className="text-muted-foreground mt-2">
             {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
           </p>
