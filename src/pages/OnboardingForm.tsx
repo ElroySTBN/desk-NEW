@@ -13,14 +13,11 @@ import { toast } from "sonner";
 import { Save, CheckCircle2, ArrowLeft } from "lucide-react";
 
 // Import section components
-import { IdentiteEntrepriseSection } from "@/components/onboarding/IdentiteEntrepriseSection";
-import { GoogleBusinessSection } from "@/components/onboarding/GoogleBusinessSection";
+import { GeneralInfoSection } from "@/components/onboarding/GeneralInfoSection";
+import { BrandIdentitySectionNew } from "@/components/onboarding/BrandIdentitySectionNew";
 import { TargetAudienceSection } from "@/components/onboarding/TargetAudienceSection";
-import { CommunicationSection } from "@/components/onboarding/CommunicationSection";
-import { VisualsSection } from "@/components/onboarding/VisualsSection";
-import { NFCTeamSection } from "@/components/onboarding/NFCTeamSection";
-import { FollowUpSection } from "@/components/onboarding/FollowUpSection";
-import { ValidationSection } from "@/components/onboarding/ValidationSection";
+import { GoogleBusinessSection } from "@/components/onboarding/GoogleBusinessSection";
+import { DescriptionAttributesSection } from "@/components/onboarding/DescriptionAttributesSection";
 
 export default function OnboardingForm() {
   const { id } = useParams<{ id: string }>();
@@ -28,7 +25,7 @@ export default function OnboardingForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [onboarding, setOnboarding] = useState<Onboarding | null>(null);
-  const [currentSection, setCurrentSection] = useState<string[]>(["section-identity"]);
+  const [currentSection, setCurrentSection] = useState<string[]>(["section-general"]);
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
@@ -272,14 +269,11 @@ export default function OnboardingForm() {
             onValueChange={setCurrentSection}
             className="space-y-4"
           >
-            <IdentiteEntrepriseSection form={form} />
-            <GoogleBusinessSection form={form} />
+            <GeneralInfoSection form={form} />
+            <BrandIdentitySectionNew form={form} />
             <TargetAudienceSection form={form} />
-            <CommunicationSection form={form} />
-            <VisualsSection form={form} onboardingId={id!} />
-            <NFCTeamSection form={form} />
-            <FollowUpSection form={form} />
-            <ValidationSection form={form} />
+            <GoogleBusinessSection form={form} />
+            <DescriptionAttributesSection form={form} />
           </Accordion>
         </form>
       </div>
