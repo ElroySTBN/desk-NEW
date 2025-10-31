@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, Download, Mail, Check, FileText } from "lucide-react";
 import { NewInvoiceDialog } from "@/components/invoices/NewInvoiceDialog";
+import { QuickInvoiceDialog } from "@/components/invoices/QuickInvoiceDialog";
 import { downloadInvoicePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 
@@ -48,6 +49,7 @@ const Invoices = () => {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showQuickDialog, setShowQuickDialog] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
     status: "all",
@@ -238,10 +240,16 @@ RaiseMed.IA`;
             Gérez toutes vos factures et paiements
           </p>
         </div>
-        <Button onClick={() => setShowNewDialog(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nouvelle Facture
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowQuickDialog(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nouvelle Facture (3 clics)
+          </Button>
+          <Button variant="outline" onClick={() => setShowNewDialog(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Avancé
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -458,6 +466,12 @@ RaiseMed.IA`;
       <NewInvoiceDialog
         open={showNewDialog}
         onOpenChange={setShowNewDialog}
+        onSuccess={fetchInvoices}
+      />
+
+      <QuickInvoiceDialog
+        open={showQuickDialog}
+        onOpenChange={setShowQuickDialog}
         onSuccess={fetchInvoices}
       />
     </div>
