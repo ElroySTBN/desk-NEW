@@ -11,11 +11,12 @@ interface QuickInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  onOpenAdvanced?: (clientId?: string) => void;
 }
 
 type Category = "installation" | "service" | null;
 
-export const QuickInvoiceDialog = ({ open, onOpenChange, onSuccess }: QuickInvoiceDialogProps) => {
+export const QuickInvoiceDialog = ({ open, onOpenChange, onSuccess, onOpenAdvanced }: QuickInvoiceDialogProps) => {
   const { toast } = useToast();
   const [step, setStep] = useState<number>(1);
   const [category, setCategory] = useState<Category>(null);
@@ -36,14 +37,11 @@ export const QuickInvoiceDialog = ({ open, onOpenChange, onSuccess }: QuickInvoi
       return;
     }
     
-    // Rediriger vers le formulaire complet avec les données pré-remplies
+    // Ouvrir le formulaire avancé avec le client pré-sélectionné
     onOpenChange(false);
-    // Ici on pourrait ouvrir un nouveau dialog ou rediriger
-    // Pour l'instant, on ferme et on notifie le parent
-    toast({
-      title: "Info",
-      description: "Cette fonctionnalité sera disponible dans la version complète",
-    });
+    if (onOpenAdvanced) {
+      onOpenAdvanced(selectedClientId || undefined);
+    }
   };
 
   const handleBack = () => {

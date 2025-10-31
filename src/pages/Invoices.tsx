@@ -50,6 +50,7 @@ const Invoices = () => {
   const [loading, setLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showQuickDialog, setShowQuickDialog] = useState(false);
+  const [preselectedClientId, setPreselectedClientId] = useState<string>();
   const [filters, setFilters] = useState({
     search: "",
     status: "all",
@@ -465,14 +466,22 @@ RaiseMed.IA`;
 
       <NewInvoiceDialog
         open={showNewDialog}
-        onOpenChange={setShowNewDialog}
+        onOpenChange={(open) => {
+          setShowNewDialog(open);
+          if (!open) setPreselectedClientId(undefined);
+        }}
         onSuccess={fetchInvoices}
+        preselectedClientId={preselectedClientId}
       />
 
       <QuickInvoiceDialog
         open={showQuickDialog}
         onOpenChange={setShowQuickDialog}
         onSuccess={fetchInvoices}
+        onOpenAdvanced={(clientId) => {
+          setPreselectedClientId(clientId);
+          setShowNewDialog(true);
+        }}
       />
     </div>
   );
