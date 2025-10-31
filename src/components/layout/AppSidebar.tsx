@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, FileText, Mail, LogOut, Settings, UserPlus } from "lucide-react";
+import { Home, Users, FileText, LogOut, Settings, UserPlus, Library } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -21,8 +21,8 @@ const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Clients", url: "/clients", icon: Users },
   { title: "Onboarding", url: "/onboarding", icon: UserPlus },
-  { title: "Factures", url: "/invoices", icon: FileText },
-  { title: "Templates", url: "/templates", icon: Mail },
+  { title: "Bibliothèque", url: "/library", icon: Library },
+  { title: "Facturation", url: "/invoices", icon: FileText },
   { title: "Paramètres", url: "/settings", icon: Settings },
 ];
 

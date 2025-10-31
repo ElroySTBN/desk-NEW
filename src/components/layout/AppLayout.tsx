@@ -5,6 +5,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Loader2 } from "lucide-react";
+import { QuickNoteButton } from "@/components/QuickNoteButton";
 
 const AppLayout = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -62,6 +63,7 @@ const AppLayout = () => {
       <AppSidebar />
       <SidebarInset>
         <Outlet />
+        <QuickNoteButton />
       </SidebarInset>
     </SidebarProvider>
   );

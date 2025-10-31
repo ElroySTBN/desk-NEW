@@ -10,7 +10,7 @@ import Clients from "./pages/Clients";
 import NewClient from "./pages/NewClient";
 import ClientDetails from "./pages/ClientDetails";
 import Invoices from "./pages/Invoices";
-import Templates from "./pages/Templates";
+import Library from "./pages/Library";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import CreateOnboarding from "./pages/CreateOnboarding";
@@ -48,7 +48,7 @@ const App = () => (
         <Route path="/clients/:clientId/funnel-setup" element={<FunnelSetup />} />
         <Route path="/clients/:clientId/funnel-content" element={<FunnelContentFlow />} />
         <Route path="/invoices" element={<Invoices />} />
-        <Route path="/templates" element={<Templates />} />
+        <Route path="/library" element={<Library />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/onboarding/create" element={<CreateOnboarding />} />
