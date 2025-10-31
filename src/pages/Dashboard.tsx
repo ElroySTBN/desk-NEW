@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInHours, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { AutoAlerts } from "@/components/dashboard/AutoAlerts";
 
 interface Task {
   id: string;
@@ -287,6 +288,9 @@ const Dashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Alertes Automatiques */}
+      <AutoAlerts />
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Focus du jour - Tâches urgentes */}
