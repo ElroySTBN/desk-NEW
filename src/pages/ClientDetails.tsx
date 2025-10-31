@@ -8,12 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClientInfoTab } from "@/components/client/ClientInfoTab";
 import { ClientKPIsTab } from "@/components/client/ClientKPIsTab";
 import { ClientInvoicesTab } from "@/components/client/ClientInvoicesTab";
-import { ClientDocumentsTab } from "@/components/client/ClientDocumentsTab";
 import { ClientEmailsTab } from "@/components/client/ClientEmailsTab";
 import { ClientOnboardingTab } from "@/components/client/ClientOnboardingTab";
 import { ClientTasksTab } from "@/components/client/ClientTasksTab";
 import { QuickEmailActions } from "@/components/client/QuickEmailActions";
 import { ClientBrandDNA } from "@/components/client/ClientBrandDNA";
+import { ClientHistoryTab } from "@/components/client/ClientHistoryTab";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Client = Tables<"clients">;
@@ -147,7 +147,7 @@ const ClientDetails = () => {
           <TabsTrigger value="tasks">Tâches</TabsTrigger>
           <TabsTrigger value="kpis">KPIs</TabsTrigger>
           <TabsTrigger value="invoices">Factures</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="history">Historique</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
         </TabsList>
 
@@ -179,8 +179,8 @@ const ClientDetails = () => {
           <ClientInvoicesTab clientId={client.id} />
         </TabsContent>
 
-        <TabsContent value="documents">
-          <ClientDocumentsTab clientId={client.id} />
+        <TabsContent value="history">
+          <ClientHistoryTab clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="communications">
