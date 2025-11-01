@@ -622,3 +622,26 @@ CREATE TRIGGER update_client_calls_updated_at BEFORE UPDATE ON public.client_cal
 -- ✅ FIN DU SCRIPT
 -- ==========================================================================
 
+
+-- ============================================================================
+-- PERMISSIONS POUR POSTGREST (API SUPABASE)
+-- ============================================================================
+
+-- Grant permissions to authenticated users
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT USAGE ON SCHEMA public TO anon;
+
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+
+-- Grant permissions on sequences
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+-- Ensure future tables have correct permissions
+ALTER DEFAULT PRIVILEGES IN SCHEMA public 
+GRANT ALL ON TABLES TO authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public 
+GRANT SELECT ON TABLES TO anon;
+
