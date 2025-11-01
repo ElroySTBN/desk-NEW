@@ -7,12 +7,14 @@
 export interface Employee {
   id: string;
   client_id: string;
+  organization_id?: string;
   name: string;
   position?: string;
   email?: string;
   phone?: string;
   unique_link_id: string;
   qr_code_data?: string;
+  delivery_type?: 'physical' | 'digital' | 'both';
   is_active: boolean;
   notes?: string;
   created_at: string;
@@ -25,6 +27,7 @@ export interface EmployeeFormData {
   position?: string;
   email?: string;
   phone?: string;
+  delivery_type?: 'physical' | 'digital' | 'both';
   notes?: string;
 }
 

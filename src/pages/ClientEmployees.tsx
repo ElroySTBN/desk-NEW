@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Table,
   TableBody,
@@ -64,6 +65,7 @@ export default function ClientEmployees() {
     position: '',
     email: '',
     phone: '',
+    delivery_type: 'both',
     notes: '',
   });
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
@@ -317,6 +319,7 @@ export default function ClientEmployees() {
       position: '',
       email: '',
       phone: '',
+      delivery_type: 'both',
       notes: '',
     });
     setEditingEmployee(null);
@@ -329,6 +332,7 @@ export default function ClientEmployees() {
       position: employee.position || '',
       email: employee.email || '',
       phone: employee.phone || '',
+      delivery_type: employee.delivery_type || 'both',
       notes: employee.notes || '',
     });
     setDialogOpen(true);
@@ -429,6 +433,27 @@ export default function ClientEmployees() {
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="06 12 34 56 78"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Type de livraison</Label>
+                  <RadioGroup 
+                    value={formData.delivery_type || 'both'}
+                    onValueChange={(value: any) => setFormData({ ...formData, delivery_type: value })}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="physical" id="physical" />
+                      <Label htmlFor="physical" className="cursor-pointer">Physique (NFC)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="digital" id="digital" />
+                      <Label htmlFor="digital" className="cursor-pointer">Digital (QR Code)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="both" id="both" />
+                      <Label htmlFor="both" className="cursor-pointer">Les deux</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
 
                 <div className="space-y-2">
