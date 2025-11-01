@@ -368,6 +368,27 @@ CREATE TABLE IF NOT EXISTS public.client_photos (
 );
 
 -- ============================================================================
+-- 21. MONTHLY REPORTS (Rapports mensuels avis)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.monthly_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE,
+  client_name TEXT NOT NULL,
+  month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
+  year INTEGER NOT NULL,
+  total_scans INTEGER DEFAULT 0,
+  total_positive_reviews INTEGER DEFAULT 0,
+  total_negative_reviews INTEGER DEFAULT 0,
+  scans_by_employee JSONB DEFAULT '[]'::jsonb,
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent')),
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(client_id, month, year)
+);
+
+-- ============================================================================
 -- INDEXES for performance
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles(id);
@@ -393,6 +414,9 @@ CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_client_id ON public.tasks(client_id);
 CREATE INDEX IF NOT EXISTS idx_quick_notes_user_id ON public.quick_notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_quick_notes_client_id ON public.quick_notes(client_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_reports_user_id ON public.monthly_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_reports_client_id ON public.monthly_reports(client_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_reports_year_month ON public.monthly_reports(year, month);
 
 -- ============================================================================
 -- TRIGGERS for updated_at
@@ -423,6 +447,7 @@ CREATE TRIGGER update_quick_notes_updated_at BEFORE UPDATE ON public.quick_notes
 CREATE TRIGGER update_client_calls_updated_at BEFORE UPDATE ON public.client_calls FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_content_library_updated_at BEFORE UPDATE ON public.content_library FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_brand_dna_updated_at BEFORE UPDATE ON public.brand_dna FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_monthly_reports_updated_at BEFORE UPDATE ON public.monthly_reports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS)
@@ -447,6 +472,7 @@ ALTER TABLE public.client_calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.content_library ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.brand_dna ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.client_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.monthly_reports ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
 -- RLS POLICIES (User can only access their own data)
@@ -608,6 +634,15 @@ CREATE POLICY "Users can insert own photos" ON public.client_photos FOR INSERT W
 DROP POLICY IF EXISTS "Users can delete own photos" ON public.client_photos;
 CREATE POLICY "Users can delete own photos" ON public.client_photos FOR DELETE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own monthly reports" ON public.monthly_reports;
+CREATE POLICY "Users can view own monthly reports" ON public.monthly_reports FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own monthly reports" ON public.monthly_reports;
+CREATE POLICY "Users can insert own monthly reports" ON public.monthly_reports FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own monthly reports" ON public.monthly_reports;
+CREATE POLICY "Users can update own monthly reports" ON public.monthly_reports FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own monthly reports" ON public.monthly_reports;
+CREATE POLICY "Users can delete own monthly reports" ON public.monthly_reports FOR DELETE USING (auth.uid() = user_id);
+
 -- ============================================================================
 -- VIEWS
 -- ============================================================================
@@ -660,6 +695,8 @@ AND tablename IN (
     'onboarding',
     'employees',
     'tasks',
-    'brand_dna'
+    'brand_dna',
+    'monthly_reports',
+    'motivational_photos'
 );
 

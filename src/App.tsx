@@ -22,6 +22,7 @@ import ClientScanReports from "./pages/ClientScanReports";
 import ClientNegativeReviews from "./pages/ClientNegativeReviews";
 import FunnelSetup from "./pages/FunnelSetup";
 import FunnelContentFlow from "./pages/FunnelContentFlow";
+import MonthlyReports from "./pages/MonthlyReports";
 import ScanRedirect from "./pages/ScanRedirect";
 import ReviewFunnel from "./pages/ReviewFunnel";
 import NotFound from "./pages/NotFound";
@@ -45,6 +46,7 @@ const App = () => (
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/library" element={<Library />} />
+          <Route path="/reports" element={<MonthlyReports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/onboarding/create" element={<CreateOnboarding />} />

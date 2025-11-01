@@ -48,12 +48,14 @@ import {
   RefreshCw
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import DeBalle from '@/components/DeBalle';
 
 export default function ClientEmployees() {
   const { id: clientId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [client, setClient] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState<EmployeeFormData>({
@@ -73,8 +75,24 @@ export default function ClientEmployees() {
   useEffect(() => {
     if (clientId) {
       fetchEmployees();
+      fetchClient();
     }
   }, [clientId]);
+
+  const fetchClient = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('name, company')
+        .eq('id', clientId)
+        .single();
+
+      if (error) throw error;
+      setClient(data);
+    } catch (error) {
+      console.error('Error fetching client:', error);
+    }
+  };
 
   const fetchEmployees = async () => {
     try {
@@ -131,7 +149,7 @@ export default function ClientEmployees() {
             email: formData.email,
             phone: formData.phone,
             notes: formData.notes,
-            created_by: user?.id,
+            user_id: user?.id,
           });
 
         if (error) throw error;
@@ -446,6 +464,14 @@ export default function ClientEmployees() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Déballe Script */}
+      {client && (
+        <DeBalle
+          companyName={client.company || client.name || "Votre Entreprise"}
+          employeeName="Votre Équipe"
+        />
+      )}
 
       {/* Table */}
       <Card>
