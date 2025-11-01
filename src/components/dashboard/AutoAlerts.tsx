@@ -131,31 +131,29 @@ export const AutoAlerts = () => {
         .select("client_id")
         .eq("user_id", user.id);
 
+      const { data: completedOnboardings } = await supabase
+        .from("onboarding")
+        .select("id, status, client_name")
+        .eq("user_id", user.id)
+        .eq("status", "completed");
+
       const clientsWithDNA = new Set(brandDNA?.map((bd) => bd.client_id) || []);
+      const clientsWithCompletedOnboarding = new Set(
+        completedOnboardings?.map((onb) => onb.client_name) || []
+      );
 
       allActiveClients?.forEach((client) => {
-        if (!clientsWithDNA.has(client.id)) {
-          // Check if onboarding exists for this client
-          const { data: onboarding } = await supabase
-            .from("onboarding")
-            .select("id, status")
-            .eq("user_id", user.id)
-            .eq("clients.id", client.id)
-            .eq("status", "completed")
-            .limit(1);
-
-          if (onboarding && onboarding.length > 0) {
-            allAlerts.push({
-              id: `brand-dna-${client.id}`,
-              type: "brand_dna_missing",
-              severity: "warning",
-              message: `Brand DNA manquant pour ${client.name}`,
-              clientId: client.id,
-              clientName: client.name || client.company,
-              actionLabel: "Créer le Brand DNA",
-              actionUrl: `/clients/${client.id}?tab=brand-dna`,
-            });
-          }
+        if (!clientsWithDNA.has(client.id) && clientsWithCompletedOnboarding.has(client.name)) {
+          allAlerts.push({
+            id: `brand-dna-${client.id}`,
+            type: "brand_dna_missing",
+            severity: "warning",
+            message: `Brand DNA manquant pour ${client.name}`,
+            clientId: client.id,
+            clientName: client.name || client.company,
+            actionLabel: "Créer le Brand DNA",
+            actionUrl: `/clients/${client.id}?tab=brand-dna`,
+          });
         }
       });
 
