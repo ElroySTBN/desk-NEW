@@ -476,14 +476,14 @@ const Contacts = () => {
             <div>
               <Label htmlFor="organization_id">Organisation</Label>
               <Select
-                value={formData.organization_id}
-                onValueChange={(value) => setFormData({ ...formData, organization_id: value })}
+                value={formData.organization_id || "none"}
+                onValueChange={(value) => setFormData({ ...formData, organization_id: value === "none" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner une organisation (optionnel)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucune organisation</SelectItem>
+                  <SelectItem value="none">Aucune organisation</SelectItem>
                   {organizations.map((org) => (
                     <SelectItem key={org.id} value={org.id}>
                       {org.commercial_name || org.legal_name}
