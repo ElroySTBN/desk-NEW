@@ -554,7 +554,30 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      contacts_with_organization: {
+        Row: {
+          id: string
+          user_id: string
+          organization_id: string | null
+          first_name: string
+          last_name: string
+          email: string | null
+          phone: string | null
+          mobile: string | null
+          job_title: string | null
+          department: string | null
+          is_main_contact: boolean
+          is_billing_contact: boolean
+          is_technical_contact: boolean
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+          organization_name: string | null
+          organization_commercial_name: string | null
+          organization_status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

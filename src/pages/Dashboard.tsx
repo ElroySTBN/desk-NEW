@@ -217,9 +217,9 @@ const Dashboard = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate("/clients/new")} size="lg" className="gap-2">
+          <Button onClick={() => navigate("/organizations")} size="lg" className="gap-2">
             <Plus className="h-4 w-4" />
-            Nouveau Client
+            Nouvelle Organisation
           </Button>
         </div>
       </div>
@@ -357,7 +357,7 @@ const Dashboard = () => {
             <Button
               variant="outline"
               className="h-14 text-base justify-start gap-3"
-              onClick={() => navigate("/clients/new")}
+              onClick={() => navigate("/organizations")}
             >
               <Plus className="h-5 w-5" />
               Créer un Client
