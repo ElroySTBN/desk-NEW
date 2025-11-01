@@ -1,73 +1,146 @@
-# Welcome to your Lovable project
+# 🚀 RaiseDesk - Plateforme de Gestion Client
 
-## Project info
+Plateforme complète de gestion de clients pour agence de marketing digital et gestion Google Business Profile.
 
-**URL**: https://lovable.dev/projects/9c80948f-e12a-4daf-8783-8dc5cde21e61
+## 📋 Fonctionnalités
 
-## How can I edit this code?
+### ✅ Déjà Implémenté
 
-There are several ways of editing your application.
+- **Dashboard** : Vue d'ensemble, alertes automatiques, tâches urgentes
+- **Clients** : Fiches complètes, Brand DNA, historique, KPIs
+- **Onboarding** : 5 sections simplifiées, génération Brand DNA
+- **Bibliothèque de Contenu** : Calendrier, création posts GBP
+- **Facturation** : Création rapide en 3 clics
+- **Notes Rapides** : Bouton flottant global
+- **Système d'Avis** : Funnel personnalisé, QR codes, tracking
 
-**Use Lovable**
+## 🚀 Démarrage Rapide
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/9c80948f-e12a-4daf-8783-8dc5cde21e61) and start prompting.
+### 1. Prérequis
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js 18+
+- Compte Supabase (gratuit)
+- Compte Vercel (pour déploiement)
 
-**Use your preferred IDE**
+### 2. Installation
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+# Cloner le projet
+git clone <votre-repo>
+cd raisedesk-io
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# Installer les dépendances
+npm install
 
-Follow these steps:
+# Configurer les variables d'environnement
+cp .env.example .env
+# Éditer .env avec vos clés Supabase
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 3. Configuration Supabase
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+1. Créer un projet sur [supabase.com](https://supabase.com)
+2. Obtenir les clés API (Settings → API)
+3. Appliquer les migrations SQL (voir ci-dessous)
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 4. Lancer en local
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Ouvrir http://localhost:8080
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🗄️ Base de Données
 
-**Use GitHub Codespaces**
+### Migrations SQL
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Les migrations sont dans `supabase/migrations/`. Appliquer dans l'ordre :
 
-## What technologies are used for this project?
+1. `20251025111131_c564f016-3265-48ea-aa21-56a5c236550a.sql` - Tables de base
+2. `20251027120000_add_settings_tables.sql` - Paramètres entreprise & produits
+3. `20251028000000_add_onboarding_table.sql` - Onboarding
+4. `20251028000001_create_onboarding_storage.sql` - Storage onboarding
+5. `20251029000000_create_review_system.sql` - Système d'avis
+6. `20251029120000_add_funnel_config.sql` - Configuration funnel
+7. `20251030000000_add_tasks_system.sql` - Tâches, notes, Brand DNA
 
-This project is built with:
+### Appliquer les migrations
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+**Méthode manuelle (Recommandée)** :
+1. Ouvrir Supabase Dashboard → SQL Editor
+2. Copier le contenu de chaque fichier migration
+3. Exécuter dans l'ordre
 
-## How can I deploy this project?
+**Méthode automatique** :
+```bash
+# Utiliser le script helper
+./scripts/apply-migrations.sh
+```
 
-Simply open [Lovable](https://lovable.dev/projects/9c80948f-e12a-4daf-8783-8dc5cde21e61) and click on Share -> Publish.
+## 🚢 Déploiement Vercel
 
-## Can I connect a custom domain to my Lovable project?
+Le projet est configuré pour un déploiement automatique sur Vercel.
 
-Yes, you can!
+1. Connecter votre repo GitHub à Vercel
+2. Configurer les variables d'environnement dans Vercel
+3. Chaque push sur `main` déclenche un déploiement automatique
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📂 Structure
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```
+src/
+├── components/          # Composants React
+│   ├── client/         # Composants spécifiques clients
+│   ├── dashboard/      # Dashboard & alertes
+│   ├── invoices/       # Facturation
+│   ├── library/        # Bibliothèque de contenu
+│   ├── onboarding/     # Sections onboarding
+│   ├── settings/       # Paramètres
+│   └── ui/             # Composants UI (shadcn/ui)
+├── integrations/
+│   └── supabase/       # Client Supabase
+├── lib/                # Utilitaires
+├── pages/              # Pages principales
+└── types/              # Types TypeScript
+```
+
+## 🔧 Développement
+
+### Commandes disponibles
+
+```bash
+npm run dev          # Démarrer en mode développement
+npm run build        # Build de production
+npm run lint         # Linter le code
+npm run preview      # Prévisualiser le build
+```
+
+### Stack Technique
+
+- **Frontend** : React + TypeScript + Vite
+- **UI** : Tailwind CSS + shadcn/ui
+- **Backend** : Supabase (PostgreSQL + Auth + Storage)
+- **Déploiement** : Vercel
+- **Formulaires** : React Hook Form + Zod
+- **PDF** : jsPDF
+- **QR Codes** : qrcode
+
+## 📝 Notes
+
+- Les types Supabase sont auto-générés via CLI
+- Les migrations doivent être appliquées dans l'ordre
+- Le déploiement Vercel est automatique (GitHub webhook)
+- Toutes les données sont stockées sur Supabase
+
+## 🆘 Support
+
+Pour toute question ou problème, vérifier :
+1. Les logs Vercel (build errors)
+2. Les logs Supabase (erreurs RLS)
+3. Console navigateur (erreurs JS)
+
+---
+
+**Version** : 1.0.0  
+**Dernière mise à jour** : Novembre 2024
