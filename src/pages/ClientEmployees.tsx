@@ -26,6 +26,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { 
   UserPlus, 
@@ -37,7 +44,8 @@ import {
   Copy,
   CheckCircle2,
   XCircle,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -58,6 +66,9 @@ export default function ClientEmployees() {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
+  const [employeeToReassign, setEmployeeToReassign] = useState<Employee | null>(null);
+  const [targetEmployeeId, setTargetEmployeeId] = useState<string>('');
 
   useEffect(() => {
     if (clientId) {
@@ -208,6 +219,51 @@ export default function ClientEmployees() {
     toast.success('Lien copié dans le presse-papiers');
   };
 
+  const openReassignDialog = (employee: Employee) => {
+    setEmployeeToReassign(employee);
+    setTargetEmployeeId('');
+    setReassignDialogOpen(true);
+  };
+
+  const handleReassign = async () => {
+    if (!employeeToReassign || !targetEmployeeId) {
+      toast.error('Sélectionnez un employé de destination');
+      return;
+    }
+
+    try {
+      // Get target employee's unique_link_id
+      const targetEmployee = employees.find(e => e.id === targetEmployeeId);
+      if (!targetEmployee) {
+        toast.error('Employé de destination non trouvé');
+        return;
+      }
+
+      // Transfer the unique_link_id from old to new employee
+      const { error: updateError } = await supabase
+        .from('employees')
+        .update({ unique_link_id: employeeToReassign.unique_link_id })
+        .eq('id', targetEmployeeId);
+
+      if (updateError) throw updateError;
+
+      // Generate new unique_link_id for the old employee
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: newLinkError } = await supabase
+        .from('employees')
+        .update({ unique_link_id: crypto.randomUUID() })
+        .eq('id', employeeToReassign.id);
+
+      if (newLinkError) throw newLinkError;
+
+      toast.success('Lien réattribué avec succès');
+      setReassignDialogOpen(false);
+      fetchEmployees();
+    } catch (error: any) {
+      toast.error('Erreur lors de la réattribution');
+      console.error(error);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -460,6 +516,14 @@ export default function ClientEmployees() {
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openReassignDialog(employee)}
+                          title="Réattribuer le lien"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
                         <Link to={`/clients/${clientId}/scan-reports?employee=${employee.id}`}>
                           <Button variant="ghost" size="icon" title="Voir les statistiques">
                             <BarChart3 className="h-4 w-4" />
@@ -532,6 +596,59 @@ export default function ClientEmployees() {
             <Button onClick={downloadQRCode}>
               <Download className="mr-2 h-4 w-4" />
               Télécharger
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Réattribution Dialog */}
+      <Dialog open={reassignDialogOpen} onOpenChange={setReassignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Réattribuer le lien</DialogTitle>
+            <DialogDescription>
+              Transférer le lien de {employeeToReassign?.name} à un autre employé
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-2">Employé actuel :</p>
+              <p className="text-lg">{employeeToReassign?.name}</p>
+              <p className="text-xs text-muted-foreground font-mono">
+                Lien : {employeeToReassign?.unique_link_id.substring(0, 8)}...
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nouvel employé *</Label>
+              <Select value={targetEmployeeId} onValueChange={setTargetEmployeeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionnez un employé" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees
+                    .filter(e => e.id !== employeeToReassign?.id)
+                    .map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Le lien sera transféré à cet employé, et un nouveau lien sera généré pour l'ancien
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleReassign}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Réattribuer
             </Button>
           </DialogFooter>
         </DialogContent>
