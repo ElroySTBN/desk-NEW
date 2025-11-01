@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,255 +26,151 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Package } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-
-interface Product {
-  id?: string;
-  reference: string;
-  name: string;
-  description: string;
-  price_ht: number;
-  tva_rate: number;
-  subscription_type: "mensuel" | "trimestriel" | "semestriel" | "annuel" | "ponctuel";
-  is_active: boolean;
-}
+import { useCompanyConfig, type Product } from "@/hooks/useCompanyConfig";
 
 export const ProductsManager = () => {
   const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { products, addProduct, updateProduct, deleteProduct } = useCompanyConfig();
   const [showDialog, setShowDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<Product>({
+  const [formData, setFormData] = useState({
     reference: "",
     name: "",
     description: "",
-    price_ht: 0,
-    tva_rate: 20,
-    subscription_type: "mensuel",
-    is_active: true,
+    priceHT: 0,
+    tvaRate: 20,
+    subscriptionType: "installation",
+    isActive: true,
   });
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setProducts(data || []);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleOpenDialog = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
-      setFormData(product);
+      setFormData({
+        reference: product.reference,
+        name: product.name,
+        description: product.description,
+        priceHT: product.priceHT,
+        tvaRate: product.tvaRate,
+        subscriptionType: product.subscriptionType,
+        isActive: product.isActive,
+      });
     } else {
       setEditingProduct(null);
       setFormData({
         reference: "",
         name: "",
         description: "",
-        price_ht: 0,
-        tva_rate: 20,
-        subscription_type: "mensuel",
-        is_active: true,
+        priceHT: 0,
+        tvaRate: 20,
+        subscriptionType: "installation",
+        isActive: true,
       });
     }
     setShowDialog(true);
   };
 
-  const handleSaveProduct = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
-
-      const productData = {
-        ...formData,
-        user_id: user.id,
-      };
-
-      if (editingProduct?.id) {
-        // Update
-        const { error } = await supabase
-          .from("products")
-          .update(productData)
-          .eq("id", editingProduct.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "Produit modifié",
-          description: `${formData.name} a été mis à jour.`,
-        });
-      } else {
-        // Insert
-        const { error } = await supabase
-          .from("products")
-          .insert(productData);
-
-        if (error) throw error;
-
-        toast({
-          title: "Produit ajouté",
-          description: `${formData.name} a été ajouté au catalogue.`,
-        });
-      }
-
-      setShowDialog(false);
-      fetchProducts();
-    } catch (error: any) {
+  const handleSaveProduct = () => {
+    if (editingProduct) {
+      updateProduct(editingProduct.id, formData);
       toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
+        title: "✅ Produit modifié",
+        description: "Le produit a été modifié avec succès.",
+      });
+    } else {
+      addProduct(formData);
+      toast({
+        title: "✅ Produit ajouté",
+        description: "Le nouveau produit a été ajouté avec succès.",
+      });
+    }
+    setShowDialog(false);
+  };
+
+  const handleDeleteProduct = (id: string) => {
+    if (confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) {
+      deleteProduct(id);
+      toast({
+        title: "🗑️ Produit supprimé",
+        description: "Le produit a été supprimé avec succès.",
       });
     }
   };
-
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
-
-    try {
-      const { error } = await supabase
-        .from("products")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Produit supprimé",
-        description: "Le produit a été retiré du catalogue.",
-      });
-
-      fetchProducts();
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getSubscriptionLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      mensuel: "Mensuel",
-      trimestriel: "Trimestriel",
-      semestriel: "Semestriel",
-      annuel: "Annuel",
-      ponctuel: "Ponctuel",
-    };
-    return labels[type] || type;
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-      </div>
-    );
-  }
 
   return (
-    <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Catalogue de produits & services</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              {products.length} produit(s) au catalogue
-            </p>
-          </div>
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle>Gestion des produits et services</CardTitle>
           <Button onClick={() => handleOpenDialog()} className="gap-2">
             <Plus className="h-4 w-4" />
             Nouveau produit
           </Button>
-        </CardHeader>
-        <CardContent>
-          {products.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">
-                Aucun produit dans votre catalogue
-              </p>
-              <Button onClick={() => handleOpenDialog()} variant="outline" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Ajouter votre premier produit
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Référence</TableHead>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Prix HT</TableHead>
-                  <TableHead>TVA</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {products.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            Aucun produit enregistré. Cliquez sur "Nouveau produit" pour commencer.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Référence</TableHead>
+                <TableHead>Nom</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Prix HT</TableHead>
+                <TableHead>TVA</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell className="font-mono">{product.reference}</TableCell>
+                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell className="max-w-xs truncate">{product.description}</TableCell>
+                  <TableCell>{product.priceHT.toFixed(2)} €</TableCell>
+                  <TableCell>{product.tvaRate}%</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{product.subscriptionType}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={product.isActive ? "default" : "secondary"}>
+                      {product.isActive ? "Actif" : "Inactif"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenDialog(product)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteProduct(product.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-mono text-sm">{product.reference}</TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>{product.price_ht.toLocaleString("fr-FR")} €</TableCell>
-                    <TableCell>{product.tva_rate}%</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{getSubscriptionLabel(product.subscription_type)}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={product.is_active ? "default" : "secondary"}>
-                        {product.is_active ? "Actif" : "Inactif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenDialog(product)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteProduct(product.id!)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
 
-      {/* Dialog for add/edit product */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -284,7 +179,7 @@ export const ProductsManager = () => {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="reference">Référence *</Label>
@@ -292,7 +187,7 @@ export const ProductsManager = () => {
                   id="reference"
                   value={formData.reference}
                   onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                  placeholder="GBP-MENSUEL"
+                  placeholder="INSTALL-001"
                 />
               </div>
               <div>
@@ -301,7 +196,7 @@ export const ProductsManager = () => {
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Google Business Profile - Abonnement Mensuel"
+                  placeholder="Frais d'installation"
                 />
               </div>
             </div>
@@ -312,7 +207,7 @@ export const ProductsManager = () => {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Gestion complète de votre profil Google Business..."
+                placeholder="Description détaillée du produit/service"
                 rows={3}
               />
             </div>
@@ -324,52 +219,52 @@ export const ProductsManager = () => {
                   id="price_ht"
                   type="number"
                   step="0.01"
-                  value={formData.price_ht}
-                  onChange={(e) => setFormData({ ...formData, price_ht: parseFloat(e.target.value) })}
-                  placeholder="150.00"
+                  value={formData.priceHT}
+                  onChange={(e) => setFormData({ ...formData, priceHT: parseFloat(e.target.value) })}
+                  placeholder="0.00"
                 />
               </div>
               <div>
-                <Label htmlFor="tva_rate">TVA (%)</Label>
+                <Label htmlFor="tva_rate">Taux de TVA (%)</Label>
                 <Input
                   id="tva_rate"
                   type="number"
-                  step="0.01"
-                  value={formData.tva_rate}
-                  onChange={(e) => setFormData({ ...formData, tva_rate: parseFloat(e.target.value) })}
+                  value={formData.tvaRate}
+                  onChange={(e) => setFormData({ ...formData, tvaRate: parseInt(e.target.value) })}
                   placeholder="20"
                 />
               </div>
               <div>
-                <Label htmlFor="subscription_type">Type d'abonnement</Label>
+                <Label htmlFor="subscription_type">Type</Label>
                 <Select
-                  value={formData.subscription_type}
-                  onValueChange={(value: any) => setFormData({ ...formData, subscription_type: value })}
+                  value={formData.subscriptionType}
+                  onValueChange={(value) => setFormData({ ...formData, subscriptionType: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="installation">Installation</SelectItem>
+                    <SelectItem value="service">Service</SelectItem>
                     <SelectItem value="mensuel">Mensuel</SelectItem>
                     <SelectItem value="trimestriel">Trimestriel</SelectItem>
                     <SelectItem value="semestriel">Semestriel</SelectItem>
                     <SelectItem value="annuel">Annuel</SelectItem>
-                    <SelectItem value="ponctuel">Ponctuel</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
                 id="is_active"
-                checked={formData.is_active}
-                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                className="h-4 w-4"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                className="rounded"
               />
               <Label htmlFor="is_active" className="cursor-pointer">
-                Produit actif (visible dans le catalogue)
+                Produit actif
               </Label>
             </div>
           </div>
@@ -384,8 +279,6 @@ export const ProductsManager = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </Card>
   );
 };
-
-
