@@ -260,9 +260,9 @@ CREATE TABLE IF NOT EXISTS public.review_funnel_config (
   client_id UUID UNIQUE REFERENCES public.clients(id) ON DELETE CASCADE,
   funnel_enabled BOOLEAN DEFAULT TRUE,
   rating_threshold INTEGER DEFAULT 4 CHECK (rating_threshold >= 1 AND rating_threshold <= 5),
-  display_logo BOOLEAN DEFAULT TRUE,
-  display_company_name BOOLEAN DEFAULT TRUE,
-  url_slug TEXT,
+  show_logo BOOLEAN DEFAULT TRUE,
+  show_company_name BOOLEAN DEFAULT TRUE,
+  custom_url_slug VARCHAR(255) UNIQUE,
   initial_page_config JSONB DEFAULT '{}'::jsonb,
   negative_review_config JSONB DEFAULT '{}'::jsonb,
   positive_review_config JSONB DEFAULT '{}'::jsonb,
@@ -434,6 +434,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_client_id ON public.tasks(client_id);
 CREATE INDEX IF NOT EXISTS idx_quick_notes_user_id ON public.quick_notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_quick_notes_client_id ON public.quick_notes(client_id);
+CREATE INDEX IF NOT EXISTS idx_review_funnel_config_client_id ON public.review_funnel_config(client_id);
+CREATE INDEX IF NOT EXISTS idx_review_funnel_config_custom_url_slug ON public.review_funnel_config(custom_url_slug);
 CREATE INDEX IF NOT EXISTS idx_review_campaigns_user_id ON public.review_campaigns(user_id);
 CREATE INDEX IF NOT EXISTS idx_review_campaigns_organization_id ON public.review_campaigns(organization_id);
 CREATE INDEX IF NOT EXISTS idx_review_campaigns_client_id ON public.review_campaigns(client_id);

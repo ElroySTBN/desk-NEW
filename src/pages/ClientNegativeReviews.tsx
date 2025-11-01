@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { NegativeReview, REVIEW_STATUS_LABELS, RATING_LABELS } from '@/types/review-system';
+import { useEntityType } from '@/hooks/use-entity-type';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,7 @@ import { fr } from 'date-fns/locale';
 export default function ClientNegativeReviews() {
   const { id: clientId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isOrganization } = useEntityType(clientId);
   const [reviews, setReviews] = useState<NegativeReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReview, setSelectedReview] = useState<NegativeReview | null>(null);
@@ -223,7 +225,7 @@ export default function ClientNegativeReviews() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(`/clients/${clientId}`)}
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />

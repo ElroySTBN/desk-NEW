@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useEntityType } from "@/hooks/use-entity-type";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { uploadClientLogo, deleteClientLogo } from "@/lib/logoService";
 export default function FunnelSetup() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const { isOrganization } = useEntityType(clientId);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,23 +32,49 @@ export default function FunnelSetup() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
-    if (clientId) {
+    if (clientId && !useEntityType(clientId).loading) {
       loadData();
     }
-  }, [clientId]);
+  }, [clientId, isOrganization]);
 
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // Load client
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('id, name, company, logo_url')
-        .eq('id', clientId)
-        .single();
+      // Load client/organization
+      let clientData: any = null;
+      
+      if (isOrganization) {
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .select('id, legal_name, commercial_name')
+          .eq('id', clientId)
+          .single();
 
-      if (clientError) throw clientError;
+        if (!orgError && orgData) {
+          clientData = {
+            id: orgData.id,
+            name: orgData.commercial_name || orgData.legal_name,
+            company: orgData.commercial_name || orgData.legal_name,
+            logo_url: null
+          };
+        }
+      } else {
+        const { data: clientDataFromDb, error: clientError } = await supabase
+          .from('clients')
+          .select('id, name, company, logo_url')
+          .eq('id', clientId)
+          .single();
+
+        if (!clientError && clientDataFromDb) {
+          clientData = clientDataFromDb;
+        }
+      }
+
+      if (!clientData) {
+        throw new Error('Client/Organization not found');
+      }
+      
       setClient(clientData);
 
       // Load funnel config
@@ -164,7 +192,7 @@ export default function FunnelSetup() {
 
   const handleNext = async () => {
     await handleSave();
-    navigate(`/clients/${clientId}/funnel-content`);
+    navigate(isOrganization ? `/organizations/${clientId}/funnel-content` : `/clients/${clientId}/funnel-content`);
   };
 
   if (loading) {
@@ -184,7 +212,7 @@ export default function FunnelSetup() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate(`/clients/${clientId}/review-settings`)}
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}/review-settings` : `/clients/${clientId}/review-settings`)}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

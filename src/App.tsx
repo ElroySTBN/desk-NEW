@@ -50,6 +50,8 @@ const App = () => (
           <Route path="/organizations/:id/review-settings" element={<ClientReviewSettings />} />
           <Route path="/organizations/:id/scan-reports" element={<ClientScanReports />} />
           <Route path="/organizations/:id/negative-reviews" element={<ClientNegativeReviews />} />
+          <Route path="/organizations/:id/funnel-setup" element={<FunnelSetup />} />
+          <Route path="/organizations/:id/funnel-content" element={<FunnelContentFlow />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/invoices" element={<Invoices />} />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useEntityType } from "@/hooks/use-entity-type";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import {
 export default function FunnelContentFlow() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const { isOrganization } = useEntityType(clientId);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -139,6 +141,11 @@ export default function FunnelContentFlow() {
       if (error) throw error;
 
       toast.success('Configuration sauvegardée');
+      
+      // Redirect to organization/client details
+      setTimeout(() => {
+        navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`);
+      }, 1000);
     } catch (error: any) {
       console.error('Error saving:', error);
       toast.error(error.message || 'Erreur de sauvegarde');
@@ -170,7 +177,7 @@ export default function FunnelContentFlow() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate(`/clients/${clientId}/funnel-setup`)}
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}/funnel-setup` : `/clients/${clientId}/funnel-setup`)}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

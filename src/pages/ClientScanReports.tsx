@@ -7,6 +7,7 @@ import {
   EmployeeScanStatsDaily,
   EmployeeScanStatsHourly,
 } from '@/types/review-system';
+import { useEntityType } from '@/hooks/use-entity-type';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -43,6 +44,7 @@ import { fr } from 'date-fns/locale';
 export default function ClientScanReports() {
   const { id: clientId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isOrganization } = useEntityType(clientId);
   const [searchParams] = useSearchParams();
   const selectedEmployeeId = searchParams.get('employee');
 
@@ -248,7 +250,7 @@ export default function ClientScanReports() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(`/clients/${clientId}`)}
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />

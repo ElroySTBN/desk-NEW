@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ReviewSettings, ReviewSettingsFormData } from '@/types/review-system';
+import { useEntityType } from '@/hooks/use-entity-type';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ import {
 export default function ClientReviewSettings() {
   const { id: clientId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isOrganization } = useEntityType(clientId);
   const [settings, setSettings] = useState<ReviewSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -189,7 +191,7 @@ export default function ClientReviewSettings() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(`/clients/${clientId}`)}
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -203,7 +205,7 @@ export default function ClientReviewSettings() {
         <div className="flex gap-2">
           <Button 
             variant="default" 
-            onClick={() => navigate(`/clients/${clientId}/funnel-setup`)}
+            onClick={() => navigate(isOrganization ? `/organizations/${clientId}/funnel-setup` : `/clients/${clientId}/funnel-setup`)}
           >
             <Sparkles className="mr-2 h-4 w-4" />
             Funnel Personnalisé
