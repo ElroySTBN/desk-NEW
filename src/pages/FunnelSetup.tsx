@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useEntityType } from "@/hooks/use-entity-type";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,11 +21,11 @@ interface FunnelConfig {
 export default function FunnelSetup() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { isOrganization, loading: entityTypeLoading } = useEntityType(clientId);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [client, setClient] = useState<any>(null);
+  const [isOrganization, setIsOrganization] = useState(false);
   const [config, setConfig] = useState<FunnelConfig>({
     funnel_enabled: true,
     rating_threshold: 4,
@@ -37,31 +36,32 @@ export default function FunnelSetup() {
 
   // Load data once when component mounts
   useEffect(() => {
+    if (!clientId) return;
+
     let mounted = true;
 
     const loadData = async () => {
-      if (!clientId || entityTypeLoading || !mounted) return;
-
       try {
         setLoading(true);
 
-        // Load client/organization
-        let clientData: any = null;
-        
-        if (isOrganization) {
-          const { data: orgData, error: orgError } = await supabase
-            .from('organizations')
-            .select('id, legal_name, commercial_name')
-            .eq('id', clientId)
-            .single();
+        // Try to load as organization first
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .select('id, legal_name, commercial_name')
+          .eq('id', clientId)
+          .single();
 
-          if (!orgError && orgData) {
-            clientData = {
-              id: orgData.id,
-              name: orgData.commercial_name || orgData.legal_name,
-            };
-          }
+        let clientData: any = null;
+
+        if (!orgError && orgData) {
+          // It's an organization
+          setIsOrganization(true);
+          clientData = {
+            id: orgData.id,
+            name: orgData.commercial_name || orgData.legal_name,
+          };
         } else {
+          // Try to load as client
           const { data: clientDataFromDb, error: clientError } = await supabase
             .from('clients')
             .select('id, name, company')
@@ -69,6 +69,7 @@ export default function FunnelSetup() {
             .single();
 
           if (!clientError && clientDataFromDb) {
+            setIsOrganization(false);
             clientData = {
               id: clientDataFromDb.id,
               name: clientDataFromDb.company || clientDataFromDb.name,
@@ -76,8 +77,10 @@ export default function FunnelSetup() {
           }
         }
 
-        if (!clientData) {
-          toast.error('Client/Organization introuvable');
+        if (!clientData || !mounted) {
+          if (mounted) {
+            toast.error('Client/Organization introuvable');
+          }
           return;
         }
         
@@ -116,7 +119,9 @@ export default function FunnelSetup() {
 
       } catch (error) {
         console.error('Error loading data:', error);
-        toast.error('Erreur de chargement');
+        if (mounted) {
+          toast.error('Erreur de chargement');
+        }
       } finally {
         if (mounted) {
           setLoading(false);
@@ -129,7 +134,7 @@ export default function FunnelSetup() {
     return () => {
       mounted = false;
     };
-  }, [clientId, isOrganization, entityTypeLoading]);
+  }, [clientId]);
 
   const handleSave = async () => {
     if (!clientId) return;

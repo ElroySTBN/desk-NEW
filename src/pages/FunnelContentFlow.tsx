@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useEntityType } from "@/hooks/use-entity-type";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,18 +10,10 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Eye } from "lucide-react";
 
-interface ContentConfig {
-  initial_page_config: any;
-  negative_review_config: any;
-  positive_review_config: any;
-  multiplatform_config: any;
-  thank_you_page_config: any;
-}
-
 export default function FunnelContentFlow() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { isOrganization } = useEntityType(clientId);
+  const [isOrganization, setIsOrganization] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,13 +40,24 @@ export default function FunnelContentFlow() {
   });
 
   useEffect(() => {
+    if (!clientId) return;
+
     let mounted = true;
 
     const loadConfig = async () => {
-      if (!clientId || !mounted) return;
-
       try {
         setLoading(true);
+
+        // Check if it's an organization
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('id', clientId)
+          .single();
+
+        if (!orgError && orgData) {
+          setIsOrganization(true);
+        }
 
         const { data, error } = await supabase
           .from('review_funnel_config')
@@ -65,7 +67,9 @@ export default function FunnelContentFlow() {
 
         if (error && error.code !== 'PGRST116') {
           console.error('Error loading config:', error);
-          toast.error('Erreur de chargement');
+          if (mounted) {
+            toast.error('Erreur de chargement');
+          }
           return;
         }
 
@@ -84,7 +88,9 @@ export default function FunnelContentFlow() {
         }
       } catch (error) {
         console.error('Error loading config:', error);
-        toast.error('Erreur de chargement');
+        if (mounted) {
+          toast.error('Erreur de chargement');
+        }
       } finally {
         if (mounted) {
           setLoading(false);
