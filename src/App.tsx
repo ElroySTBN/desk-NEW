@@ -24,45 +24,48 @@ import FunnelContentFlow from "./pages/FunnelContentFlow";
 import ScanRedirect from "./pages/ScanRedirect";
 import ReviewFunnel from "./pages/ReviewFunnel";
 import NotFound from "./pages/NotFound";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/organizations" element={<Organizations />} />
-        <Route path="/contacts" element={<Contacts />} />
-        <Route path="/invoices" element={<Invoices />} />
-        <Route path="/library" element={<Library />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/onboarding/create" element={<CreateOnboarding />} />
-        <Route path="/onboarding/export/:id" element={<OnboardingExport />} />
-        
-        {/* Legacy routes - redirected to new CRM */}
-        <Route path="/clients/:id/employees" element={<ClientEmployees />} />
-        <Route path="/clients/:id/review-settings" element={<ClientReviewSettings />} />
-        <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
-        <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
-        <Route path="/clients/:clientId/funnel-setup" element={<FunnelSetup />} />
-        <Route path="/clients/:clientId/funnel-content" element={<FunnelContentFlow />} />
-          </Route>
-          {/* Public routes (no layout) */}
-          <Route path="/onboarding/form/:id" element={<OnboardingForm />} />
-          <Route path="/scan/:employeeId" element={<ScanRedirect />} />
-          <Route path="/review/:clientId" element={<ReviewFunnel />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route element={<AppLayout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/organizations" element={<Organizations />} />
+          <Route path="/contacts" element={<Contacts />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/library" element={<Library />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/onboarding/create" element={<CreateOnboarding />} />
+          <Route path="/onboarding/export/:id" element={<OnboardingExport />} />
+          
+          {/* Legacy routes - redirected to new CRM */}
+          <Route path="/clients/:id/employees" element={<ClientEmployees />} />
+          <Route path="/clients/:id/review-settings" element={<ClientReviewSettings />} />
+          <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
+          <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
+          <Route path="/clients/:clientId/funnel-setup" element={<FunnelSetup />} />
+          <Route path="/clients/:clientId/funnel-content" element={<FunnelContentFlow />} />
+            </Route>
+            {/* Public routes (no layout) */}
+            <Route path="/onboarding/form/:id" element={<OnboardingForm />} />
+            <Route path="/scan/:employeeId" element={<ScanRedirect />} />
+            <Route path="/review/:clientId" element={<ReviewFunnel />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
