@@ -39,9 +39,16 @@ cp .env.example .env
 
 ### 3. Configuration Supabase
 
+**Méthode automatique (Recommandée)** :
+```bash
+./scripts/full-setup.sh
+```
+
+**Méthode manuelle** :
 1. Créer un projet sur [supabase.com](https://supabase.com)
 2. Obtenir les clés API (Settings → API)
-3. Appliquer les migrations SQL (voir ci-dessous)
+3. Dans SQL Editor, exécuter : `scripts/complete-database.sql`
+4. Générer les types : `./scripts/generate-types.sh`
 
 ### 4. Lancer en local
 
@@ -55,27 +62,18 @@ Ouvrir http://localhost:8080
 
 ### Migrations SQL
 
-Les migrations sont dans `supabase/migrations/`. Appliquer dans l'ordre :
+**Script unique complet** : `scripts/complete-database.sql`
 
-1. `20251025111131_c564f016-3265-48ea-aa21-56a5c236550a.sql` - Tables de base
-2. `20251027120000_add_settings_tables.sql` - Paramètres entreprise & produits
-3. `20251028000000_add_onboarding_table.sql` - Onboarding
-4. `20251028000001_create_onboarding_storage.sql` - Storage onboarding
-5. `20251029000000_create_review_system.sql` - Système d'avis
-6. `20251029120000_add_funnel_config.sql` - Configuration funnel
-7. `20251030000000_add_tasks_system.sql` - Tâches, notes, Brand DNA
+Ce fichier contient TOUTES les tables nécessaires en un seul script.
+Exécutez-le directement dans Supabase SQL Editor.
 
-### Appliquer les migrations
-
-**Méthode manuelle (Recommandée)** :
-1. Ouvrir Supabase Dashboard → SQL Editor
-2. Copier le contenu de chaque fichier migration
-3. Exécuter dans l'ordre
-
-**Méthode automatique** :
+Pour appliquer :
 ```bash
-# Utiliser le script helper
-./scripts/apply-migrations.sh
+# Ouvrir le fichier
+open scripts/complete-database.sql
+
+# Copier TOUT le contenu
+# Coller dans Supabase → SQL Editor → RUN
 ```
 
 ## 🚢 Déploiement Vercel
