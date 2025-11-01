@@ -617,11 +617,45 @@ DROP POLICY IF EXISTS "Users can insert own scan tracking" ON public.scan_tracki
 CREATE POLICY "Users can insert own scan tracking" ON public.scan_tracking FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can view own review settings" ON public.review_settings;
-CREATE POLICY "Users can view own review settings" ON public.review_settings FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own review settings"
+  ON public.review_settings FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.clients
+      WHERE clients.id = review_settings.client_id
+      AND clients.user_id = auth.uid()
+    )
+  );
 DROP POLICY IF EXISTS "Users can insert own review settings" ON public.review_settings;
-CREATE POLICY "Users can insert own review settings" ON public.review_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert own review settings"
+  ON public.review_settings FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.clients
+      WHERE clients.id = review_settings.client_id
+      AND clients.user_id = auth.uid()
+    )
+  );
 DROP POLICY IF EXISTS "Users can update own review settings" ON public.review_settings;
-CREATE POLICY "Users can update own review settings" ON public.review_settings FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own review settings"
+  ON public.review_settings FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.clients
+      WHERE clients.id = review_settings.client_id
+      AND clients.user_id = auth.uid()
+    )
+  );
+DROP POLICY IF EXISTS "Users can delete own review settings" ON public.review_settings;
+CREATE POLICY "Users can delete own review settings"
+  ON public.review_settings FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.clients
+      WHERE clients.id = review_settings.client_id
+      AND clients.user_id = auth.uid()
+    )
+  );
 
 DROP POLICY IF EXISTS "Users can view own negative reviews" ON public.negative_reviews;
 CREATE POLICY "Users can view own negative reviews" ON public.negative_reviews FOR SELECT USING (auth.uid() = user_id);

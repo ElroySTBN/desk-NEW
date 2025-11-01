@@ -2,9 +2,15 @@
 -- Fix review_settings table to match application code
 -- ============================================================================
 
--- Drop old columns if they exist
+-- Drop RLS policies that depend on user_id first
+DROP POLICY IF EXISTS "Users can view own review settings" ON public.review_settings;
+DROP POLICY IF EXISTS "Users can insert own review settings" ON public.review_settings;
+DROP POLICY IF EXISTS "Users can update own review settings" ON public.review_settings;
+DROP POLICY IF EXISTS "Users can delete own review settings" ON public.review_settings;
+
+-- Drop old columns if they exist (CASCADE to drop dependent objects)
 ALTER TABLE public.review_settings
-DROP COLUMN IF EXISTS user_id;
+DROP COLUMN IF EXISTS user_id CASCADE;
 
 ALTER TABLE public.review_settings
 DROP COLUMN IF EXISTS positive_threshold;
@@ -111,6 +117,57 @@ BEGIN
         ADD CONSTRAINT check_threshold_score CHECK (threshold_score >= 1 AND threshold_score <= 5);
     END IF;
 END $$;
+
+-- Recreate RLS policies based on client_id relationship
+-- Enable RLS if not already enabled
+ALTER TABLE public.review_settings ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (in case they were recreated)
+DROP POLICY IF EXISTS "Users can view own review settings" ON public.review_settings;
+DROP POLICY IF EXISTS "Users can insert own review settings" ON public.review_settings;
+DROP POLICY IF EXISTS "Users can update own review settings" ON public.review_settings;
+DROP POLICY IF EXISTS "Users can delete own review settings" ON public.review_settings;
+
+-- Create new policies based on client relationship
+CREATE POLICY "Users can view own review settings"
+  ON public.review_settings FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.clients
+      WHERE clients.id = review_settings.client_id
+      AND clients.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert own review settings"
+  ON public.review_settings FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.clients
+      WHERE clients.id = review_settings.client_id
+      AND clients.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update own review settings"
+  ON public.review_settings FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.clients
+      WHERE clients.id = review_settings.client_id
+      AND clients.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete own review settings"
+  ON public.review_settings FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.clients
+      WHERE clients.id = review_settings.client_id
+      AND clients.user_id = auth.uid()
+    )
+  );
 
 -- Refresh schema cache
 NOTIFY pgrst, 'reload schema';
