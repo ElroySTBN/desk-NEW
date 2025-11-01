@@ -304,6 +304,117 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          id: string
+          user_id: string
+          company_name: string
+          legal_form: string | null
+          siret: string | null
+          siren: string | null
+          tva_number: string | null
+          address: string | null
+          postal_code: string | null
+          city: string | null
+          country: string | null
+          email: string | null
+          phone: string | null
+          website: string | null
+          logo_url: string | null
+          bank_name: string | null
+          iban: string | null
+          bic: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          company_name?: string
+          legal_form?: string | null
+          siret?: string | null
+          siren?: string | null
+          tva_number?: string | null
+          address?: string | null
+          postal_code?: string | null
+          city?: string | null
+          country?: string | null
+          email?: string | null
+          phone?: string | null
+          website?: string | null
+          logo_url?: string | null
+          bank_name?: string | null
+          iban?: string | null
+          bic?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          company_name?: string
+          legal_form?: string | null
+          siret?: string | null
+          siren?: string | null
+          tva_number?: string | null
+          address?: string | null
+          postal_code?: string | null
+          city?: string | null
+          country?: string | null
+          email?: string | null
+          phone?: string | null
+          website?: string | null
+          logo_url?: string | null
+          bank_name?: string | null
+          iban?: string | null
+          bic?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          id: string
+          user_id: string
+          reference: string
+          name: string
+          description: string | null
+          price_ht: number
+          tva_rate: number
+          subscription_type: string
+          is_active: boolean
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          reference: string
+          name: string
+          description?: string | null
+          price_ht: number
+          tva_rate?: number
+          subscription_type?: string
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          reference?: string
+          name?: string
+          description?: string | null
+          price_ht?: number
+          tva_rate?: number
+          subscription_type?: string
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
