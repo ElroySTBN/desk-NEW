@@ -56,6 +56,7 @@ export default function ClientEmployees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<any>(null);
+  const [isOrganization, setIsOrganization] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState<EmployeeFormData>({
@@ -81,25 +82,44 @@ export default function ClientEmployees() {
 
   const fetchClient = async () => {
     try {
-      const { data, error } = await supabase
+      // Try organizations first
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('legal_name, commercial_name')
+        .eq('id', clientId)
+        .single();
+
+      if (!orgError && orgData) {
+        setClient({
+          name: orgData.commercial_name || orgData.legal_name,
+          company: orgData.commercial_name || orgData.legal_name
+        });
+        setIsOrganization(true);
+        return;
+      }
+
+      // Fallback to clients
+      const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('name, company')
         .eq('id', clientId)
         .single();
 
-      if (error) throw error;
-      setClient(data);
+      if (!clientError && clientData) {
+        setClient(clientData);
+      }
     } catch (error) {
-      console.error('Error fetching client:', error);
+      console.error('Error fetching organization/client:', error);
     }
   };
 
   const fetchEmployees = async () => {
     try {
+      // Try organization_id first, then client_id
       const { data, error } = await supabase
         .from('employees')
         .select('*')
-        .eq('client_id', clientId)
+        .or(`organization_id.eq.${clientId},client_id.eq.${clientId}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -140,17 +160,25 @@ export default function ClientEmployees() {
         toast.success('Employé modifié avec succès');
       } else {
         // Création
+        const insertData: any = {
+          name: formData.name,
+          position: formData.position,
+          email: formData.email,
+          phone: formData.phone,
+          notes: formData.notes,
+          user_id: user?.id,
+        };
+        
+        // Use organization_id if it's an organization, otherwise client_id
+        if (isOrganization) {
+          insertData.organization_id = clientId;
+        } else {
+          insertData.client_id = clientId;
+        }
+        
         const { error } = await supabase
           .from('employees')
-          .insert({
-            client_id: clientId,
-            name: formData.name,
-            position: formData.position,
-            email: formData.email,
-            phone: formData.phone,
-            notes: formData.notes,
-            user_id: user?.id,
-          });
+          .insert(insertData);
 
         if (error) throw error;
         toast.success('Employé créé avec succès');
@@ -324,7 +352,7 @@ export default function ClientEmployees() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(`/clients/${clientId}`)}
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />
