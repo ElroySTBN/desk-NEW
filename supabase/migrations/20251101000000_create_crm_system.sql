@@ -154,8 +154,21 @@ SELECT
 FROM public.contacts c
 LEFT JOIN public.organizations o ON c.organization_id = o.id;
 
--- Grant permissions
+-- Grant permissions to PostgREST
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT USAGE ON SCHEMA public TO anon;
+
 GRANT ALL ON public.organizations TO authenticated;
 GRANT ALL ON public.contacts TO authenticated;
 GRANT SELECT ON public.contacts_with_organization TO authenticated;
+GRANT SELECT ON public.organizations TO anon;
+GRANT SELECT ON public.contacts TO anon;
+GRANT SELECT ON public.contacts_with_organization TO anon;
+
+-- Grant permissions on sequences
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+-- Force PostgREST to reload schema cache
+NOTIFY pgrst, 'reload schema';
 
