@@ -20,7 +20,7 @@ export default function ScanRedirect() {
       // 1. Récupérer l'employé
       const { data: employee, error: employeeError } = await supabase
         .from('employees')
-        .select('*, clients(id)')
+        .select('*, clients(id), organizations(id)')
         .eq('unique_link_id', employeeId)
         .eq('is_active', true)
         .single();
@@ -30,6 +30,9 @@ export default function ScanRedirect() {
         return;
       }
 
+      // Determine the appropriate client/organization ID
+      const targetId = employee.organization_id || employee.client_id;
+
       // 2. Tracker le scan
       const userAgent = navigator.userAgent;
       const deviceType = getDeviceType(userAgent);
@@ -38,7 +41,7 @@ export default function ScanRedirect() {
         .from('scan_tracking')
         .insert({
           employee_id: employee.id,
-          client_id: employee.client_id,
+          client_id: employee.client_id || targetId, // Keep for compatibility
           user_agent: userAgent,
           device_type: deviceType,
           referer: document.referrer || null,
@@ -50,7 +53,7 @@ export default function ScanRedirect() {
 
       // 3. Rediriger vers le funnel d'avis
       // On passe l'ID de l'employé en paramètre pour le tracker dans le funnel
-      navigate(`/review/${employee.client_id}?employee=${employee.id}`);
+      navigate(`/review/${targetId}?employee=${employee.id}`);
     } catch (error: any) {
       console.error('Error in scan redirect:', error);
       setError('Une erreur est survenue');

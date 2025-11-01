@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Copy, CheckCircle2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Copy, CheckCircle2, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface DeBalleProps {
@@ -47,8 +48,15 @@ export default function DeBalle({ companyName, employeeName }: DeBalleProps) {
   const { toast } = useToast();
   const [selectedTemplate, setSelectedTemplate] = useState<keyof typeof DEBALLE_TEMPLATES>('general');
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [customText, setCustomText] = useState('');
 
   const getTemplate = () => {
+    if (isEditing && customText) {
+      return customText
+        .replace(/\{company\}/g, companyName)
+        .replace(/\{employee\}/g, employeeName);
+    }
     const template = DEBALLE_TEMPLATES[selectedTemplate];
     return template
       .replace(/\{company\}/g, companyName)
@@ -61,6 +69,21 @@ export default function DeBalle({ companyName, employeeName }: DeBalleProps) {
     setCopied(true);
     toast({ title: "✅ Déballe copiée dans le presse-papiers" });
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleStartEdit = () => {
+    setCustomText(getTemplate());
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    setIsEditing(false);
+    toast({ title: "✅ Modification enregistrée" });
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setCustomText('');
   };
 
   return (
@@ -90,30 +113,64 @@ export default function DeBalle({ companyName, employeeName }: DeBalleProps) {
           </div>
         </div>
 
-        <div className="p-4 bg-muted rounded-lg">
-          <pre className="whitespace-pre-wrap text-sm font-sans">
-            {getTemplate()}
-          </pre>
+        <div className="space-y-2">
+          {isEditing ? (
+            <Textarea
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              rows={10}
+              className="font-mono text-sm"
+              placeholder="Éditez votre script personnalisé... (Utilisez {company} et {employee} comme variables)"
+            />
+          ) : (
+            <div className="p-4 bg-muted rounded-lg">
+              <pre className="whitespace-pre-wrap text-sm font-sans">
+                {getTemplate()}
+              </pre>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            onClick={copyToClipboard}
-            className="flex-1"
-            variant={copied ? "default" : "outline"}
-          >
-            {copied ? (
-              <>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Copié !
-              </>
-            ) : (
-              <>
-                <Copy className="mr-2 h-4 w-4" />
-                Copier
-              </>
-            )}
-          </Button>
+          {isEditing ? (
+            <>
+              <Button onClick={handleSave} className="flex-1">
+                <Save className="mr-2 h-4 w-4" />
+                Enregistrer
+              </Button>
+              <Button onClick={handleCancel} variant="outline">
+                <X className="mr-2 h-4 w-4" />
+                Annuler
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={handleStartEdit}
+                variant="outline"
+              >
+                <Edit2 className="mr-2 h-4 w-4" />
+                Modifier
+              </Button>
+              <Button
+                onClick={copyToClipboard}
+                className="flex-1"
+                variant={copied ? "default" : "outline"}
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Copié !
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copier
+                  </>
+                )}
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="pt-4 border-t space-y-2">

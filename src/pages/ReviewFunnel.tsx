@@ -40,15 +40,32 @@ export default function ReviewFunnel() {
 
   const fetchConfig = async () => {
     try {
-      // Fetch client info
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('id, name, company, logo_url')
+      // Try organizations first
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('id, legal_name, commercial_name, logo_url')
         .eq('id', clientId)
         .single();
 
-      if (clientError) throw clientError;
-      setClient(clientData);
+      if (!orgError && orgData) {
+        setClient({
+          id: orgData.id,
+          name: orgData.commercial_name || orgData.legal_name,
+          company: orgData.commercial_name || orgData.legal_name,
+          logo_url: orgData.logo_url
+        });
+      } else {
+        // Fallback to clients
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('id, name, company, logo_url')
+          .eq('id', clientId)
+          .single();
+
+        if (!clientError && clientData) {
+          setClient(clientData);
+        }
+      }
 
       // Fetch funnel config
       const { data: configData, error: configError } = await supabase
