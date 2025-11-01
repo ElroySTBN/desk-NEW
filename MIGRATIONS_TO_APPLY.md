@@ -220,8 +220,17 @@ WHERE review_platforms IS NULL;
 ALTER TABLE public.review_settings
 ALTER COLUMN client_id SET NOT NULL;
 
-ALTER TABLE public.review_settings
-ADD CONSTRAINT IF NOT EXISTS review_settings_client_id_unique UNIQUE (client_id);
+-- Check if unique constraint exists before adding
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'review_settings_client_id_unique'
+    ) THEN
+        ALTER TABLE public.review_settings
+        ADD CONSTRAINT review_settings_client_id_unique UNIQUE (client_id);
+    END IF;
+END $$;
 
 ALTER TABLE public.review_settings
 ALTER COLUMN threshold_score SET DEFAULT 4;
@@ -244,8 +253,17 @@ ALTER COLUMN positive_message SET DEFAULT 'Merci pour votre retour positif ! Pou
 ALTER TABLE public.review_settings
 ALTER COLUMN negative_message SET DEFAULT 'Nous sommes désolés que votre expérience n''ait pas été à la hauteur. Aidez-nous à nous améliorer.';
 
-ALTER TABLE public.review_settings
-ADD CONSTRAINT IF NOT EXISTS check_threshold_score CHECK (threshold_score >= 1 AND threshold_score <= 5);
+-- Check if check constraint exists before adding
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'check_threshold_score'
+    ) THEN
+        ALTER TABLE public.review_settings
+        ADD CONSTRAINT check_threshold_score CHECK (threshold_score >= 1 AND threshold_score <= 5);
+    END IF;
+END $$;
 
 -- Refresh schema cache
 NOTIFY pgrst, 'reload schema';
