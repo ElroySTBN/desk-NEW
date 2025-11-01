@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useEntityType } from "@/hooks/use-entity-type";
@@ -73,53 +73,53 @@ export default function FunnelContentFlow() {
     redirect_url: "",
   });
 
-  const loadConfig = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const { data, error } = await supabase
-        .from('review_funnel_config')
-        .select('*')
-        .eq('client_id', clientId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
-        setConfig(data);
-        
-        // Load existing configs
-        if (data.initial_page_config) {
-          setInitialPageConfig(data.initial_page_config as InitialPageConfig);
-        }
-        if (data.negative_review_config) {
-          setNegativeConfig(data.negative_review_config as NegativeReviewConfig);
-        }
-        if (data.positive_review_config) {
-          setPositiveConfig(data.positive_review_config as PositiveReviewConfig);
-        }
-        if (data.multiplatform_config) {
-          setMultiplatformConfig(data.multiplatform_config as MultiplatformConfig);
-        }
-        if (data.thank_you_page_config) {
-          setThankYouConfig(data.thank_you_page_config as ThankYouPageConfig);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading config:', error);
-      toast.error('Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
-  }, [clientId]);
-
   useEffect(() => {
-    if (clientId) {
-      loadConfig();
-    }
-  }, [clientId, loadConfig]);
+    const loadConfig = async () => {
+      if (!clientId) return;
+      
+      try {
+        setLoading(true);
+
+        const { data, error } = await supabase
+          .from('review_funnel_config')
+          .select('*')
+          .eq('client_id', clientId)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+
+        if (data) {
+          setConfig(data);
+          
+          // Load existing configs
+          if (data.initial_page_config) {
+            setInitialPageConfig(data.initial_page_config as InitialPageConfig);
+          }
+          if (data.negative_review_config) {
+            setNegativeConfig(data.negative_review_config as NegativeReviewConfig);
+          }
+          if (data.positive_review_config) {
+            setPositiveConfig(data.positive_review_config as PositiveReviewConfig);
+          }
+          if (data.multiplatform_config) {
+            setMultiplatformConfig(data.multiplatform_config as MultiplatformConfig);
+          }
+          if (data.thank_you_page_config) {
+            setThankYouConfig(data.thank_you_page_config as ThankYouPageConfig);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading config:', error);
+        toast.error('Erreur de chargement');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadConfig();
+  }, [clientId]);
 
   const handleSave = async () => {
     if (!clientId) return;

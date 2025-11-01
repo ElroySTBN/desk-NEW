@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useEntityType } from "@/hooks/use-entity-type";
@@ -31,84 +31,84 @@ export default function FunnelSetup() {
   
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      // Load client/organization
-      let clientData: any = null;
-      
-      if (isOrganization) {
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('id, legal_name, commercial_name')
-          .eq('id', clientId)
-          .single();
-
-        if (!orgError && orgData) {
-          clientData = {
-            id: orgData.id,
-            name: orgData.commercial_name || orgData.legal_name,
-            company: orgData.commercial_name || orgData.legal_name,
-            logo_url: null
-          };
-        }
-      } else {
-        const { data: clientDataFromDb, error: clientError } = await supabase
-          .from('clients')
-          .select('id, name, company, logo_url')
-          .eq('id', clientId)
-          .single();
-
-        if (!clientError && clientDataFromDb) {
-          clientData = clientDataFromDb;
-        }
-      }
-
-      if (!clientData) {
-        throw new Error('Client/Organization not found');
-      }
-      
-      setClient(clientData);
-
-      // Load funnel config
-      const { data: configData, error: configError } = await supabase
-        .from('review_funnel_config')
-        .select('*')
-        .eq('client_id', clientId)
-        .single();
-
-      if (configError && configError.code !== 'PGRST116') {
-        throw configError;
-      }
-
-      if (configData) {
-        setConfig(configData);
-      } else {
-        // Initialize default config
-        const defaultSlug = `${clientData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substr(2, 8)}`;
-        setConfig({
-          funnel_enabled: true,
-          rating_threshold: 4,
-          show_logo: true,
-          show_company_name: true,
-          custom_url_slug: defaultSlug,
-        });
-      }
-
-    } catch (error) {
-      console.error('Error loading data:', error);
-      toast.error('Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
-  }, [clientId, isOrganization]);
-
   useEffect(() => {
-    if (clientId && !entityTypeLoading) {
-      loadData();
-    }
-  }, [clientId, loadData, entityTypeLoading]);
+    const loadData = async () => {
+      if (!clientId || entityTypeLoading) return;
+      
+      try {
+        setLoading(true);
+
+        // Load client/organization
+        let clientData: any = null;
+        
+        if (isOrganization) {
+          const { data: orgData, error: orgError } = await supabase
+            .from('organizations')
+            .select('id, legal_name, commercial_name')
+            .eq('id', clientId)
+            .single();
+
+          if (!orgError && orgData) {
+            clientData = {
+              id: orgData.id,
+              name: orgData.commercial_name || orgData.legal_name,
+              company: orgData.commercial_name || orgData.legal_name,
+              logo_url: null
+            };
+          }
+        } else {
+          const { data: clientDataFromDb, error: clientError } = await supabase
+            .from('clients')
+            .select('id, name, company, logo_url')
+            .eq('id', clientId)
+            .single();
+
+          if (!clientError && clientDataFromDb) {
+            clientData = clientDataFromDb;
+          }
+        }
+
+        if (!clientData) {
+          throw new Error('Client/Organization not found');
+        }
+        
+        setClient(clientData);
+
+        // Load funnel config
+        const { data: configData, error: configError } = await supabase
+          .from('review_funnel_config')
+          .select('*')
+          .eq('client_id', clientId)
+          .single();
+
+        if (configError && configError.code !== 'PGRST116') {
+          throw configError;
+        }
+
+        if (configData) {
+          setConfig(configData);
+        } else {
+          // Initialize default config
+          const defaultSlug = `${clientData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substr(2, 8)}`;
+          setConfig({
+            funnel_enabled: true,
+            rating_threshold: 4,
+            show_logo: true,
+            show_company_name: true,
+            custom_url_slug: defaultSlug,
+          });
+        }
+
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast.error('Erreur de chargement');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [clientId, isOrganization, entityTypeLoading]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
