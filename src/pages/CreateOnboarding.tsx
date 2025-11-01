@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Copy, ExternalLink, ArrowLeft, Plus, X, Info } from "lucide-react";
+import { Copy, ExternalLink, ArrowLeft, Plus, X, Info, Building2 } from "lucide-react";
 import type { OnboardingLegalInfo, OnboardingGoogleBusiness, OnboardingBrandIdentity } from "@/types/onboarding";
+import type { Organization } from "@/types/crm";
 
 // Pas de catégories prédéfinies - tout est flexible
 
@@ -31,6 +33,8 @@ export default function CreateOnboarding() {
   const [loading, setLoading] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [generatedId, setGeneratedId] = useState("");
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
 
   // Informations obligatoires
   const [clientName, setClientName] = useState("");
@@ -89,6 +93,43 @@ export default function CreateOnboarding() {
       }
     }));
   };
+
+  // Fetch organizations on mount
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from("organizations")
+          .select("id, legal_name, commercial_name, email, phone, website")
+          .eq("user_id", user.id)
+          .order("legal_name");
+
+        if (error) throw error;
+        setOrganizations(data || []);
+      } catch (error) {
+        console.error("Error fetching organizations:", error);
+      }
+    };
+
+    fetchOrganizations();
+  }, []);
+
+  // Auto-fill when organization is selected
+  useEffect(() => {
+    if (!selectedOrgId) return;
+
+    const org = organizations.find(o => o.id === selectedOrgId);
+    if (!org) return;
+
+    // Pre-fill client name and contact email
+    if (org.commercial_name) setClientName(org.commercial_name);
+    if (org.email) setContactEmail(org.email);
+    if (org.phone) setTelephone(org.phone);
+    if (org.website) setSiteWeb(org.website);
+  }, [selectedOrgId, organizations]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,6 +264,29 @@ export default function CreateOnboarding() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Sélection organisation */}
+            <div className="space-y-2 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                <Label className="font-semibold">Sélectionner une organisation existante (optionnel)</Label>
+              </div>
+              <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionnez une organisation pour pré-remplir..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.commercial_name || org.legal_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Si vous avez déjà facturé ce client, sélectionnez-le pour pré-remplir ses coordonnées
+              </p>
+            </div>
+
             {/* Informations obligatoires */}
             <div className="space-y-4 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
               <div className="flex items-center gap-2">
