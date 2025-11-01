@@ -16,7 +16,7 @@ import { uploadClientLogo, deleteClientLogo } from "@/lib/logoService";
 export default function FunnelSetup() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { isOrganization } = useEntityType(clientId);
+  const { isOrganization, loading: entityTypeLoading } = useEntityType(clientId);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -105,10 +105,10 @@ export default function FunnelSetup() {
   }, [clientId, isOrganization]);
 
   useEffect(() => {
-    if (clientId) {
+    if (clientId && !entityTypeLoading) {
       loadData();
     }
-  }, [clientId, loadData]);
+  }, [clientId, loadData, entityTypeLoading]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
