@@ -345,6 +345,20 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO an
 -- Force PostgREST to reload schema cache
 NOTIFY pgrst, 'reload schema';
 
+-- Helper function to refresh schema cache on demand
+CREATE OR REPLACE FUNCTION public.refresh_schema_cache()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM pg_notify('pgrst', 'reload schema');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.refresh_schema_cache() TO authenticated;
+
 -- ============================================================================
 -- VERIFICATION (optionnel - pour debug)
 -- ============================================================================

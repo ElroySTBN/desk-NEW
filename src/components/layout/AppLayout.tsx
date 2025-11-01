@@ -38,6 +38,16 @@ const AppLayout = () => {
       }
     });
 
+    const refreshSchema = async () => {
+      try {
+        await supabase.rpc("refresh_schema_cache");
+      } catch (error) {
+        console.error("Failed to refresh schema cache", error);
+      }
+    };
+
+    refreshSchema();
+
     return () => subscription.unsubscribe();
   }, [navigate, location.pathname]);
 
