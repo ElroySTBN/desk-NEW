@@ -7,6 +7,7 @@ import Auth from "./pages/Auth";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Organizations from "./pages/Organizations";
+import OrganizationDetails from "./pages/OrganizationDetails";
 import Contacts from "./pages/Contacts";
 import Tasks from "./pages/Tasks";
 import Invoices from "./pages/Invoices";
@@ -42,6 +43,11 @@ const App = () => (
             <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/organizations" element={<Organizations />} />
+          <Route path="/organizations/:id" element={<OrganizationDetails />} />
+          <Route path="/organizations/:id/employees" element={<ClientEmployees />} />
+          <Route path="/organizations/:id/review-settings" element={<ClientReviewSettings />} />
+          <Route path="/organizations/:id/scan-reports" element={<ClientScanReports />} />
+          <Route path="/organizations/:id/negative-reviews" element={<ClientNegativeReviews />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/invoices" element={<Invoices />} />

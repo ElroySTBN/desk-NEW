@@ -309,6 +309,14 @@ const Organizations = () => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => navigate(`/organizations/${org.id}`)}
+                          title="Voir détails"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => navigate(`/contacts?org=${org.id}`)}
                           title="Voir les contacts"
                         >
