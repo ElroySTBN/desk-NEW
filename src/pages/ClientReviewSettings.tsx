@@ -205,10 +205,10 @@ export default function ClientReviewSettings() {
         <div className="flex gap-2">
           <Button 
             variant="default" 
-            onClick={() => navigate(isOrganization ? `/organizations/${clientId}/funnel-setup` : `/clients/${clientId}/funnel-setup`)}
+            onClick={() => navigate(isOrganization ? `/organizations/${clientId}/funnel-content` : `/clients/${clientId}/funnel-content`)}
           >
             <Sparkles className="mr-2 h-4 w-4" />
-            Funnel Personnalisé
+            Étape Suivante
           </Button>
           {settings && (
             <Button variant="outline" onClick={() => window.open(previewUrl, '_blank')}>

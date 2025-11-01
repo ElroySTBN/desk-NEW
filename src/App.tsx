@@ -47,7 +47,7 @@ const App = () => (
           <Route path="/organizations/:id" element={<OrganizationDetails />} />
           <Route path="/organizations/:id/review-campaign" element={<OrganizationReviewCampaign />} />
           <Route path="/organizations/:id/employees" element={<ClientEmployees />} />
-          <Route path="/organizations/:id/review-settings" element={<ClientReviewSettings />} />
+          <Route path="/organizations/:id/review-settings" element={<FunnelSetup />} />
           <Route path="/organizations/:id/scan-reports" element={<ClientScanReports />} />
           <Route path="/organizations/:id/negative-reviews" element={<ClientNegativeReviews />} />
           <Route path="/organizations/:id/funnel-setup" element={<FunnelSetup />} />
@@ -64,7 +64,7 @@ const App = () => (
           
           {/* Legacy routes - redirected to new CRM */}
           <Route path="/clients/:id/employees" element={<ClientEmployees />} />
-          <Route path="/clients/:id/review-settings" element={<ClientReviewSettings />} />
+          <Route path="/clients/:id/review-settings" element={<FunnelSetup />} />
           <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
           <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
           <Route path="/clients/:clientId/funnel-setup" element={<FunnelSetup />} />

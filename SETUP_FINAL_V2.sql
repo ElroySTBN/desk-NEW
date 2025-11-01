@@ -211,11 +211,22 @@ CREATE TABLE IF NOT EXISTS public.scan_tracking (
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.review_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE,
-  positive_threshold INTEGER DEFAULT 4,
-  selected_platform TEXT,
-  custom_message TEXT,
+  client_id UUID NOT NULL UNIQUE REFERENCES public.clients(id) ON DELETE CASCADE,
+  review_platforms JSONB DEFAULT '{
+    "google": {"enabled": true, "url": ""},
+    "pages_jaunes": {"enabled": false, "url": ""},
+    "trustpilot": {"enabled": false, "url": ""},
+    "tripadvisor": {"enabled": false, "url": ""},
+    "custom": {"enabled": false, "url": "", "name": ""}
+  }'::jsonb,
+  threshold_score INTEGER DEFAULT 4 CHECK (threshold_score >= 1 AND threshold_score <= 5),
+  redirect_platform VARCHAR(50) DEFAULT 'google',
+  email_notifications VARCHAR(255)[],
+  slack_webhook TEXT,
+  positive_message TEXT DEFAULT 'Merci pour votre retour positif ! Pourriez-vous partager votre expérience ?',
+  negative_message TEXT DEFAULT 'Nous sommes désolés que votre expérience n''ait pas été à la hauteur. Aidez-nous à nous améliorer.',
+  collect_customer_info BOOLEAN DEFAULT true,
+  require_email BOOLEAN DEFAULT false,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

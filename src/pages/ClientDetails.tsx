@@ -96,7 +96,7 @@ const ClientDetails = () => {
           </Card>
         </Link>
 
-        <Link to={`/clients/${id}/review-settings`}>
+        <Link to={`/clients/${id}/funnel-setup`}>
           <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
             <CardContent className="pt-6 flex items-center gap-4">
               <div className="p-3 rounded-lg bg-primary/10">

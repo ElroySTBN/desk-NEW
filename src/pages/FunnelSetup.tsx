@@ -212,7 +212,7 @@ export default function FunnelSetup() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate(isOrganization ? `/organizations/${clientId}/review-settings` : `/clients/${clientId}/review-settings`)}
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

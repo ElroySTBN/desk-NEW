@@ -110,7 +110,7 @@ const OrganizationReviewCampaign = () => {
         </TabsContent>
 
         <TabsContent value="settings">
-          <Link to={`/organizations/${orgId}/review-settings`} className="block">
+          <Link to={`/organizations/${orgId}/funnel-setup`} className="block">
             <Card className="cursor-pointer hover:border-primary transition-colors">
               <CardHeader>
                 <CardTitle>Configuration Funnel</CardTitle>
