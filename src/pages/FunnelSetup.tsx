@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useEntityType } from "@/hooks/use-entity-type";
@@ -31,13 +31,7 @@ export default function FunnelSetup() {
   
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  useEffect(() => {
-    if (clientId && !useEntityType(clientId).loading) {
-      loadData();
-    }
-  }, [clientId, isOrganization]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -105,7 +99,13 @@ export default function FunnelSetup() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId, isOrganization]);
+
+  useEffect(() => {
+    if (clientId) {
+      loadData();
+    }
+  }, [clientId, loadData]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

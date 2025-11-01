@@ -18,7 +18,6 @@ import CreateOnboarding from "./pages/CreateOnboarding";
 import OnboardingForm from "./pages/OnboardingForm";
 import OnboardingExport from "./pages/OnboardingExport";
 import ClientEmployees from "./pages/ClientEmployees";
-import ClientReviewSettings from "./pages/ClientReviewSettings";
 import ClientScanReports from "./pages/ClientScanReports";
 import ClientNegativeReviews from "./pages/ClientNegativeReviews";
 import OrganizationReviewCampaign from "./pages/OrganizationReviewCampaign";

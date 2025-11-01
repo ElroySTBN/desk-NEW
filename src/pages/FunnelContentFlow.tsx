@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useEntityType } from "@/hooks/use-entity-type";
@@ -73,13 +73,7 @@ export default function FunnelContentFlow() {
     redirect_url: "",
   });
 
-  useEffect(() => {
-    if (clientId) {
-      loadConfig();
-    }
-  }, [clientId]);
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -119,7 +113,13 @@ export default function FunnelContentFlow() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId]);
+
+  useEffect(() => {
+    if (clientId) {
+      loadConfig();
+    }
+  }, [clientId, loadConfig]);
 
   const handleSave = async () => {
     if (!clientId) return;
