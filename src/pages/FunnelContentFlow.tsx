@@ -10,14 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Eye } from "lucide-react";
-import {
-  ReviewFunnelConfig,
-  InitialPageConfig,
-  NegativeReviewConfig,
-  PositiveReviewConfig,
-  MultiplatformConfig,
-  ThankYouPageConfig,
-} from "@/types/funnel-config";
+
+interface ContentConfig {
+  initial_page_config: any;
+  negative_review_config: any;
+  positive_review_config: any;
+  multiplatform_config: any;
+  thank_you_page_config: any;
+}
 
 export default function FunnelContentFlow() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -26,16 +26,16 @@ export default function FunnelContentFlow() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [config, setConfig] = useState<Partial<ReviewFunnelConfig> | null>(null);
+  const [config, setConfig] = useState<any>(null);
 
-  const [initialPageConfig, setInitialPageConfig] = useState<InitialPageConfig>({
+  const [initialPageConfig, setInitialPageConfig] = useState({
     title: "Comment nous évalueriez-vous ?",
-    description: "Merci de prendre un moment pour évaluer votre expérience avec nous. Votre retour nous aide non seulement, mais il aide aussi d'autres clients potentiels.",
+    description: "Merci de prendre un moment pour évaluer votre expérience avec nous.",
   });
 
-  const [negativeConfig, setNegativeConfig] = useState<NegativeReviewConfig>({
+  const [negativeConfig, setNegativeConfig] = useState({
     title: "Aidez-nous à nous améliorer",
-    description: "Nous sommes désolés que votre expérience n'ait pas été à la hauteur. Pourriez-vous nous en dire plus ?",
+    description: "Nous sommes désolés que votre expérience n'ait pas été à la hauteur.",
     comment_placeholder: "Décrivez votre expérience...",
     submit_button_text: "Envoyer mon retour",
     require_email: false,
@@ -43,40 +43,17 @@ export default function FunnelContentFlow() {
     require_phone: false,
   });
 
-  const [positiveConfig, setPositiveConfig] = useState<PositiveReviewConfig>({
-    redirect_mode: 'single',
-    primary_platform: 'google',
-    platforms: {
-      google: { enabled: true, url: '', name: 'Google' },
-      pages_jaunes: { enabled: false, url: '', name: 'Pages Jaunes' },
-      trustpilot: { enabled: false, url: '', name: 'Trustpilot' },
-      tripadvisor: { enabled: false, url: '', name: 'TripAdvisor' },
-      facebook: { enabled: false, url: '', name: 'Facebook' },
-      yelp: { enabled: false, url: '', name: 'Yelp' },
-    },
-  });
-
-  const [multiplatformConfig, setMultiplatformConfig] = useState<MultiplatformConfig>({
-    enabled: false,
-    title: "Partagez votre expérience",
-    description: "Choisissez les plateformes sur lesquelles vous souhaitez laisser votre avis. Cela nous aide énormément !",
-    min_platforms: 1,
-    show_platform_icons: true,
-  });
-
-  const [thankYouConfig, setThankYouConfig] = useState<ThankYouPageConfig>({
+  const [thankYouConfig, setThankYouConfig] = useState({
     title: "Merci pour votre retour",
     message: "Votre retour a été reçu et un membre de notre équipe support client vous contactera sous peu.",
-    show_logo: true,
-    show_company_name: true,
-    redirect_delay_seconds: 0,
-    redirect_url: "",
   });
 
   useEffect(() => {
+    let mounted = true;
+
     const loadConfig = async () => {
-      if (!clientId) return;
-      
+      if (!clientId || !mounted) return;
+
       try {
         setLoading(true);
 
@@ -87,38 +64,39 @@ export default function FunnelContentFlow() {
           .single();
 
         if (error && error.code !== 'PGRST116') {
-          throw error;
+          console.error('Error loading config:', error);
+          toast.error('Erreur de chargement');
+          return;
         }
 
-        if (data) {
+        if (data && mounted) {
           setConfig(data);
           
-          // Load existing configs
           if (data.initial_page_config) {
-            setInitialPageConfig(data.initial_page_config as InitialPageConfig);
+            setInitialPageConfig(data.initial_page_config);
           }
           if (data.negative_review_config) {
-            setNegativeConfig(data.negative_review_config as NegativeReviewConfig);
-          }
-          if (data.positive_review_config) {
-            setPositiveConfig(data.positive_review_config as PositiveReviewConfig);
-          }
-          if (data.multiplatform_config) {
-            setMultiplatformConfig(data.multiplatform_config as MultiplatformConfig);
+            setNegativeConfig(data.negative_review_config);
           }
           if (data.thank_you_page_config) {
-            setThankYouConfig(data.thank_you_page_config as ThankYouPageConfig);
+            setThankYouConfig(data.thank_you_page_config);
           }
         }
       } catch (error) {
         console.error('Error loading config:', error);
         toast.error('Erreur de chargement');
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadConfig();
+
+    return () => {
+      mounted = false;
+    };
   }, [clientId]);
 
   const handleSave = async () => {
@@ -132,8 +110,6 @@ export default function FunnelContentFlow() {
         .update({
           initial_page_config: initialPageConfig,
           negative_review_config: negativeConfig,
-          positive_review_config: positiveConfig,
-          multiplatform_config: multiplatformConfig,
           thank_you_page_config: thankYouConfig,
         })
         .eq('client_id', clientId);
@@ -141,23 +117,12 @@ export default function FunnelContentFlow() {
       if (error) throw error;
 
       toast.success('Configuration sauvegardée');
-      
-      // Redirect to organization/client details
-      setTimeout(() => {
-        navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`);
-      }, 1000);
     } catch (error: any) {
       console.error('Error saving:', error);
       toast.error(error.message || 'Erreur de sauvegarde');
     } finally {
       setSaving(false);
     }
-  };
-
-  const handlePreview = () => {
-    // Open preview in new tab
-    const previewUrl = `/review/${config?.custom_url_slug || clientId}?preview=true`;
-    window.open(previewUrl, '_blank');
   };
 
   if (loading) {
@@ -177,394 +142,141 @@ export default function FunnelContentFlow() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate(isOrganization ? `/organizations/${clientId}/funnel-setup` : `/clients/${clientId}/funnel-setup`)}
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour
         </Button>
-
-        <h1 className="text-3xl font-bold">Contenu et Flux</h1>
+        
+        <h1 className="text-3xl font-bold">Configuration du Contenu</h1>
         <p className="text-muted-foreground mt-2">
-          Personnalisez les messages et le parcours de vos clients
+          Personnalisez les messages du funnel d'avis
         </p>
       </div>
 
       {/* Progress */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-2">
-          <div className="flex-1 h-2 bg-primary rounded-full"></div>
+          <div className="flex-1 h-2 bg-muted rounded-full"></div>
           <div className="flex-1 h-2 bg-primary rounded-full"></div>
         </div>
-        <p className="text-sm text-muted-foreground">Étape 2/2 - Contenu et flux</p>
+        <p className="text-sm text-muted-foreground">Étape 2/2 - Contenu</p>
       </div>
 
       <div className="space-y-6">
-        {/* Page d'évaluation initiale */}
+        {/* Page Initiale */}
         <Card>
           <CardHeader>
-            <CardTitle>Page d'Évaluation Initiale</CardTitle>
+            <CardTitle>Page Initiale</CardTitle>
             <CardDescription>
-              Premier écran vu par vos clients - collecte de la note
+              Message affiché lors de l'arrivée sur le funnel
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="initial-title">Titre</Label>
+              <Label>Titre</Label>
               <Input
-                id="initial-title"
                 value={initialPageConfig.title}
-                onChange={(e) =>
-                  setInitialPageConfig({ ...initialPageConfig, title: e.target.value })
-                }
-                placeholder="Comment nous évalueriez-vous ?"
+                onChange={(e) => setInitialPageConfig({ ...initialPageConfig, title: e.target.value })}
               />
             </div>
-
             <div>
-              <Label htmlFor="initial-description">Description</Label>
+              <Label>Description</Label>
               <Textarea
-                id="initial-description"
                 value={initialPageConfig.description}
-                onChange={(e) =>
-                  setInitialPageConfig({ ...initialPageConfig, description: e.target.value })
-                }
-                placeholder="Message d'accueil pour vos clients..."
+                onChange={(e) => setInitialPageConfig({ ...initialPageConfig, description: e.target.value })}
                 rows={3}
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Avis Négatifs */}
+        {/* Avis Négatif */}
         <Card>
           <CardHeader>
-            <CardTitle>Configuration des Avis Négatifs</CardTitle>
+            <CardTitle>Avis Négatif</CardTitle>
             <CardDescription>
-              Messages et champs pour collecter les retours négatifs en privé
+              Message affiché pour les avis négatifs
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="negative-title">Titre</Label>
+              <Label>Titre</Label>
               <Input
-                id="negative-title"
                 value={negativeConfig.title}
-                onChange={(e) =>
-                  setNegativeConfig({ ...negativeConfig, title: e.target.value })
-                }
-                placeholder="Aidez-nous à nous améliorer"
+                onChange={(e) => setNegativeConfig({ ...negativeConfig, title: e.target.value })}
               />
             </div>
-
             <div>
-              <Label htmlFor="negative-description">Description</Label>
+              <Label>Description</Label>
               <Textarea
-                id="negative-description"
                 value={negativeConfig.description}
-                onChange={(e) =>
-                  setNegativeConfig({ ...negativeConfig, description: e.target.value })
-                }
-                placeholder="Message pour les clients insatisfaits..."
+                onChange={(e) => setNegativeConfig({ ...negativeConfig, description: e.target.value })}
                 rows={3}
               />
             </div>
-
             <div>
-              <Label htmlFor="comment-placeholder">Placeholder du commentaire</Label>
+              <Label>Placeholder du commentaire</Label>
               <Input
-                id="comment-placeholder"
                 value={negativeConfig.comment_placeholder}
-                onChange={(e) =>
-                  setNegativeConfig({ ...negativeConfig, comment_placeholder: e.target.value })
-                }
-                placeholder="Décrivez votre expérience..."
+                onChange={(e) => setNegativeConfig({ ...negativeConfig, comment_placeholder: e.target.value })}
               />
             </div>
-
             <div>
-              <Label htmlFor="submit-button">Texte du bouton</Label>
+              <Label>Texte du bouton</Label>
               <Input
-                id="submit-button"
                 value={negativeConfig.submit_button_text}
-                onChange={(e) =>
-                  setNegativeConfig({ ...negativeConfig, submit_button_text: e.target.value })
-                }
-                placeholder="Envoyer mon retour"
+                onChange={(e) => setNegativeConfig({ ...negativeConfig, submit_button_text: e.target.value })}
               />
             </div>
-
-            <div className="space-y-3 pt-4 border-t">
-              <p className="font-medium text-sm">Champs requis</p>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="require-name">Nom obligatoire</Label>
-                <Switch
-                  id="require-name"
-                  checked={negativeConfig.require_name}
-                  onCheckedChange={(checked) =>
-                    setNegativeConfig({ ...negativeConfig, require_name: checked })
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="require-email">Email obligatoire</Label>
-                <Switch
-                  id="require-email"
-                  checked={negativeConfig.require_email}
-                  onCheckedChange={(checked) =>
-                    setNegativeConfig({ ...negativeConfig, require_email: checked })
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="require-phone">Téléphone obligatoire</Label>
-                <Switch
-                  id="require-phone"
-                  checked={negativeConfig.require_phone}
-                  onCheckedChange={(checked) =>
-                    setNegativeConfig({ ...negativeConfig, require_phone: checked })
-                  }
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
 
-        {/* Avis Positifs - Plateformes */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Configuration des Avis Positifs</CardTitle>
-            <CardDescription>
-              Définissez où rediriger vos clients satisfaits
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <p className="font-medium text-sm">Plateformes disponibles</p>
-              
-              {Object.entries(positiveConfig.platforms).map(([key, platform]) => (
-                <div key={key} className="space-y-2 p-4 border rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor={`platform-${key}`} className="capitalize">
-                      {platform.name}
-                    </Label>
-                    <Switch
-                      id={`platform-${key}`}
-                      checked={platform.enabled}
-                      onCheckedChange={(checked) =>
-                        setPositiveConfig({
-                          ...positiveConfig,
-                          platforms: {
-                            ...positiveConfig.platforms,
-                            [key]: { ...platform, enabled: checked },
-                          },
-                        })
-                      }
-                    />
-                  </div>
-
-                  {platform.enabled && (
-                    <Input
-                      value={platform.url}
-                      onChange={(e) =>
-                        setPositiveConfig({
-                          ...positiveConfig,
-                          platforms: {
-                            ...positiveConfig.platforms,
-                            [key]: { ...platform, url: e.target.value },
-                          },
-                        })
-                      }
-                      placeholder={`URL ${platform.name} (ex: https://g.page/...)`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-4 border-t">
-              <Label htmlFor="primary-platform">Plateforme principale (par défaut)</Label>
-              <select
-                id="primary-platform"
-                className="w-full mt-2 px-3 py-2 border rounded-md"
-                value={positiveConfig.primary_platform}
-                onChange={(e) =>
-                  setPositiveConfig({
-                    ...positiveConfig,
-                    primary_platform: e.target.value as any,
-                  })
-                }
-              >
-                {Object.entries(positiveConfig.platforms)
-                  .filter(([_, platform]) => platform.enabled)
-                  .map(([key, platform]) => (
-                    <option key={key} value={key}>
-                      {platform.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Multi-plateformes */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Sélection Multi-Plateformes</CardTitle>
-            <CardDescription>
-              Permettez aux clients de laisser leur avis sur plusieurs plateformes
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="multiplatform-enabled" className="text-base">
-                  Activer la sélection multi-plateformes
-                </Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Afficher une page intermédiaire pour choisir les plateformes
-                </p>
-              </div>
-              <Switch
-                id="multiplatform-enabled"
-                checked={multiplatformConfig.enabled}
-                onCheckedChange={(checked) =>
-                  setMultiplatformConfig({ ...multiplatformConfig, enabled: checked })
-                }
-              />
-            </div>
-
-            {multiplatformConfig.enabled && (
-              <>
-                <div>
-                  <Label htmlFor="multi-title">Titre</Label>
-                  <Input
-                    id="multi-title"
-                    value={multiplatformConfig.title}
-                    onChange={(e) =>
-                      setMultiplatformConfig({ ...multiplatformConfig, title: e.target.value })
-                    }
-                    placeholder="Partagez votre expérience"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="multi-description">Description</Label>
-                  <Textarea
-                    id="multi-description"
-                    value={multiplatformConfig.description}
-                    onChange={(e) =>
-                      setMultiplatformConfig({ ...multiplatformConfig, description: e.target.value })
-                    }
-                    placeholder="Message pour encourager le partage..."
-                    rows={3}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="min-platforms">Nombre minimum de plateformes</Label>
-                  <Input
-                    id="min-platforms"
-                    type="number"
-                    min={1}
-                    max={6}
-                    value={multiplatformConfig.min_platforms}
-                    onChange={(e) =>
-                      setMultiplatformConfig({
-                        ...multiplatformConfig,
-                        min_platforms: parseInt(e.target.value) || 1,
-                      })
-                    }
-                  />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Page de remerciement */}
+        {/* Page de Remerciement */}
         <Card>
           <CardHeader>
             <CardTitle>Page de Remerciement</CardTitle>
             <CardDescription>
-              Affichée après l'envoi d'un avis négatif
+              Message affiché après soumission d'un avis
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="thankyou-title">Titre</Label>
+              <Label>Titre</Label>
               <Input
-                id="thankyou-title"
                 value={thankYouConfig.title}
-                onChange={(e) =>
-                  setThankYouConfig({ ...thankYouConfig, title: e.target.value })
-                }
-                placeholder="Merci pour votre retour"
+                onChange={(e) => setThankYouConfig({ ...thankYouConfig, title: e.target.value })}
               />
             </div>
-
             <div>
-              <Label htmlFor="thankyou-message">Message</Label>
+              <Label>Message</Label>
               <Textarea
-                id="thankyou-message"
                 value={thankYouConfig.message}
-                onChange={(e) =>
-                  setThankYouConfig({ ...thankYouConfig, message: e.target.value })
-                }
-                placeholder="Message de remerciement..."
+                onChange={(e) => setThankYouConfig({ ...thankYouConfig, message: e.target.value })}
                 rows={3}
               />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="thankyou-logo">Afficher le logo</Label>
-                <Switch
-                  id="thankyou-logo"
-                  checked={thankYouConfig.show_logo}
-                  onCheckedChange={(checked) =>
-                    setThankYouConfig({ ...thankYouConfig, show_logo: checked })
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="thankyou-company">Afficher le nom</Label>
-                <Switch
-                  id="thankyou-company"
-                  checked={thankYouConfig.show_company_name}
-                  onCheckedChange={(checked) =>
-                    setThankYouConfig({ ...thankYouConfig, show_company_name: checked })
-                  }
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
+      </div>
 
-        {/* Actions */}
-        <div className="flex justify-between gap-4 pt-6">
-          <Button
-            variant="outline"
-            onClick={handlePreview}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            Prévisualiser
-          </Button>
-
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-          >
-            <Save className="mr-2 h-4 w-4" />
-            Sauvegarder
-          </Button>
-        </div>
+      {/* Footer */}
+      <div className="mt-8 flex justify-end gap-4">
+        <Button
+          variant="outline"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          <Save className="mr-2 h-4 w-4" />
+          {saving ? 'Sauvegarde...' : 'Enregistrer'}
+        </Button>
+        <Button
+          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
+        >
+          Terminer
+        </Button>
       </div>
     </div>
   );
 }
-
