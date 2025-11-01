@@ -164,14 +164,14 @@ const Organizations = () => {
           .eq("id", editingOrg.id);
 
         if (error) throw error;
-        toast({ title: "✅ Organisation modifiée" });
+        toast({ title: "✅ Entreprise modifiée" });
       } else {
         const { error } = await supabase
           .from("organizations")
           .insert({ ...formData, user_id: user.id });
 
         if (error) throw error;
-        toast({ title: "✅ Organisation créée" });
+        toast({ title: "✅ Entreprise créée" });
       }
 
       setShowDialog(false);
@@ -186,7 +186,7 @@ const Organizations = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette organisation ?")) return;
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette entreprise ?")) return;
 
     try {
       const { error } = await supabase
@@ -195,7 +195,7 @@ const Organizations = () => {
         .eq("id", id);
 
       if (error) throw error;
-      toast({ title: "🗑️ Organisation supprimée" });
+      toast({ title: "🗑️ Entreprise supprimée" });
       fetchOrganizations();
     } catch (error: any) {
       toast({
@@ -234,7 +234,7 @@ const Organizations = () => {
         <div>
           <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">
             <Building2 className="h-10 w-10" />
-            Organisations
+            Entreprises
           </h1>
           <p className="text-muted-foreground mt-2">
             Gérez vos entreprises clientes et prospects
@@ -242,7 +242,7 @@ const Organizations = () => {
         </div>
         <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2">
           <Plus className="h-5 w-5" />
-          Nouvelle organisation
+          Nouvelle entreprise
         </Button>
       </div>
 
@@ -275,7 +275,7 @@ const Organizations = () => {
           {filteredOrgs.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Aucune organisation trouvée</p>
+              <p>Aucune entreprise trouvée</p>
             </div>
           ) : (
             <Table>
@@ -342,7 +342,7 @@ const Organizations = () => {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingOrg ? "Modifier l'organisation" : "Nouvelle organisation"}
+              {editingOrg ? "Modifier l'entreprise" : "Nouvelle entreprise"}
             </DialogTitle>
           </DialogHeader>
 

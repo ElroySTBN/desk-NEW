@@ -69,12 +69,12 @@ const Dashboard = () => {
 
     const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-    // Active clients + MRR
+    // Active organizations + MRR
     const { data: activeClients, count: activeCount } = await supabase
-      .from("clients")
+      .from("organizations")
       .select("monthly_amount, id", { count: "exact" })
       .eq("user_id", user.id)
-      .eq("status", "actif");
+      .eq("status", "client");
 
     const mrr = activeClients?.reduce((sum, c) => sum + (Number(c.monthly_amount) || 0), 0) || 0;
 
@@ -233,7 +233,7 @@ const Dashboard = () => {
         <div className="flex gap-2">
           <Button onClick={() => navigate("/organizations")} size="lg" className="gap-2">
             <Plus className="h-4 w-4" />
-            Nouvelle Organisation
+            Nouvelle Entreprise
           </Button>
         </div>
       </div>
@@ -285,7 +285,7 @@ const Dashboard = () => {
           <div className="grid gap-6 md:grid-cols-4">
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <div className="text-3xl font-bold text-primary">{stats.activeClients}</div>
-              <div className="text-sm text-muted-foreground mt-1">Clients Actifs</div>
+              <div className="text-sm text-muted-foreground mt-1">Entreprises Actives</div>
             </div>
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <div className="text-3xl font-bold text-success">{stats.mrr.toLocaleString("fr-FR")} €</div>
@@ -319,7 +319,7 @@ const Dashboard = () => {
           <CardContent>
             {urgentTasks.length === 0 ? (
               <div className="text-center py-8">
-                <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-success" />
+              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-success" />
                 <p className="text-muted-foreground">Aucune tâche urgente ! 🎉</p>
             </div>
           ) : (
@@ -351,7 +351,7 @@ const Dashboard = () => {
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {formatTimeUntil(task.due_date || null)}
-                        </div>
+                      </div>
                     </div>
                   </div>
                 );

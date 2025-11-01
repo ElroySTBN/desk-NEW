@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
-  { title: "Organisations", url: "/organizations", icon: Building2 },
+  { title: "Entreprises", url: "/organizations", icon: Building2 },
   { title: "Contacts", url: "/contacts", icon: UserCircle },
   { title: "Tâches", url: "/tasks", icon: CheckSquare },
   { title: "Onboarding", url: "/onboarding", icon: UserPlus },
