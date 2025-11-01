@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,76 +30,143 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { useCompanyConfig, type Product } from "@/hooks/useCompanyConfig";
+
+interface Product {
+  id?: string;
+  reference: string;
+  name: string;
+  description: string;
+  price_ht: number;
+  tva_rate: number;
+  subscription_type: string;
+  is_active: boolean;
+}
 
 export const ProductsManager = () => {
   const { toast } = useToast();
-  const { products, addProduct, updateProduct, deleteProduct } = useCompanyConfig();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Product>({
     reference: "",
     name: "",
     description: "",
-    priceHT: 0,
-    tvaRate: 20,
-    subscriptionType: "installation",
-    isActive: true,
+    price_ht: 0,
+    tva_rate: 20,
+    subscription_type: "installation",
+    is_active: true,
   });
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error: any) {
+      console.error("Error fetching products:", error);
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenDialog = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
-      setFormData({
-        reference: product.reference,
-        name: product.name,
-        description: product.description,
-        priceHT: product.priceHT,
-        tvaRate: product.tvaRate,
-        subscriptionType: product.subscriptionType,
-        isActive: product.isActive,
-      });
+      setFormData(product);
     } else {
       setEditingProduct(null);
       setFormData({
         reference: "",
         name: "",
         description: "",
-        priceHT: 0,
-        tvaRate: 20,
-        subscriptionType: "installation",
-        isActive: true,
+        price_ht: 0,
+        tva_rate: 20,
+        subscription_type: "installation",
+        is_active: true,
       });
     }
     setShowDialog(true);
   };
 
-  const handleSaveProduct = () => {
-    if (editingProduct) {
-      updateProduct(editingProduct.id, formData);
+  const handleSaveProduct = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      if (editingProduct) {
+        const { error } = await supabase
+          .from("products")
+          .update(formData)
+          .eq("id", editingProduct.id);
+
+        if (error) throw error;
+        toast({ title: "✅ Produit modifié" });
+      } else {
+        const { error } = await supabase
+          .from("products")
+          .insert({ ...formData, user_id: user.id });
+
+        if (error) throw error;
+        toast({ title: "✅ Produit ajouté" });
+      }
+
+      setShowDialog(false);
+      fetchProducts();
+    } catch (error: any) {
       toast({
-        title: "✅ Produit modifié",
-        description: "Le produit a été modifié avec succès.",
-      });
-    } else {
-      addProduct(formData);
-      toast({
-        title: "✅ Produit ajouté",
-        description: "Le nouveau produit a été ajouté avec succès.",
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
       });
     }
-    setShowDialog(false);
   };
 
-  const handleDeleteProduct = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) {
-      deleteProduct(id);
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      toast({ title: "🗑️ Produit supprimé" });
+      fetchProducts();
+    } catch (error: any) {
       toast({
-        title: "🗑️ Produit supprimé",
-        description: "Le produit a été supprimé avec succès.",
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <Card>
@@ -136,14 +204,14 @@ export const ProductsManager = () => {
                   <TableCell className="font-mono">{product.reference}</TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="max-w-xs truncate">{product.description}</TableCell>
-                  <TableCell>{product.priceHT.toFixed(2)} €</TableCell>
-                  <TableCell>{product.tvaRate}%</TableCell>
+                  <TableCell>{product.price_ht.toFixed(2)} €</TableCell>
+                  <TableCell>{product.tva_rate}%</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{product.subscriptionType}</Badge>
+                    <Badge variant="outline">{product.subscription_type}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={product.isActive ? "default" : "secondary"}>
-                      {product.isActive ? "Actif" : "Inactif"}
+                    <Badge variant={product.is_active ? "default" : "secondary"}>
+                      {product.is_active ? "Actif" : "Inactif"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -158,7 +226,7 @@ export const ProductsManager = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteProduct(product.id)}
+                        onClick={() => handleDeleteProduct(product.id!)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -219,8 +287,8 @@ export const ProductsManager = () => {
                   id="price_ht"
                   type="number"
                   step="0.01"
-                  value={formData.priceHT}
-                  onChange={(e) => setFormData({ ...formData, priceHT: parseFloat(e.target.value) })}
+                  value={formData.price_ht}
+                  onChange={(e) => setFormData({ ...formData, price_ht: parseFloat(e.target.value) })}
                   placeholder="0.00"
                 />
               </div>
@@ -229,16 +297,16 @@ export const ProductsManager = () => {
                 <Input
                   id="tva_rate"
                   type="number"
-                  value={formData.tvaRate}
-                  onChange={(e) => setFormData({ ...formData, tvaRate: parseInt(e.target.value) })}
+                  value={formData.tva_rate}
+                  onChange={(e) => setFormData({ ...formData, tva_rate: parseInt(e.target.value) })}
                   placeholder="20"
                 />
               </div>
               <div>
                 <Label htmlFor="subscription_type">Type</Label>
                 <Select
-                  value={formData.subscriptionType}
-                  onValueChange={(value) => setFormData({ ...formData, subscriptionType: value })}
+                  value={formData.subscription_type}
+                  onValueChange={(value) => setFormData({ ...formData, subscription_type: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -259,8 +327,8 @@ export const ProductsManager = () => {
               <input
                 type="checkbox"
                 id="is_active"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                checked={formData.is_active}
+                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                 className="rounded"
               />
               <Label htmlFor="is_active" className="cursor-pointer">
