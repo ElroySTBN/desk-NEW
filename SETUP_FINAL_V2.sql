@@ -174,6 +174,7 @@ CREATE TABLE IF NOT EXISTS public.employees (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   position TEXT,
   email TEXT,
@@ -368,7 +369,25 @@ CREATE TABLE IF NOT EXISTS public.client_photos (
 );
 
 -- ============================================================================
--- 21. MONTHLY REPORTS (Rapports mensuels avis)
+-- 21. REVIEW CAMPAIGNS (Campagnes d'avis)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.review_campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
+  client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  campaign_type TEXT DEFAULT 'physical' CHECK (campaign_type IN ('physical', 'digital', 'hybrid')),
+  description TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  start_date DATE,
+  end_date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 22. MONTHLY REPORTS (Rapports mensuels avis)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.monthly_reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -405,6 +424,7 @@ CREATE INDEX IF NOT EXISTS idx_onboarding_user_id ON public.onboarding(user_id);
 CREATE INDEX IF NOT EXISTS idx_employees_user_id ON public.employees(user_id);
 CREATE INDEX IF NOT EXISTS idx_employees_client_id ON public.employees(client_id);
 CREATE INDEX IF NOT EXISTS idx_employees_unique_link_id ON public.employees(unique_link_id);
+CREATE INDEX IF NOT EXISTS idx_employees_organization_id ON public.employees(organization_id);
 CREATE INDEX IF NOT EXISTS idx_scan_tracking_employee_id ON public.scan_tracking(employee_id);
 CREATE INDEX IF NOT EXISTS idx_scan_tracking_client_id ON public.scan_tracking(client_id);
 CREATE INDEX IF NOT EXISTS idx_scan_tracking_scan_date ON public.scan_tracking(scan_date);
@@ -414,6 +434,9 @@ CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_client_id ON public.tasks(client_id);
 CREATE INDEX IF NOT EXISTS idx_quick_notes_user_id ON public.quick_notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_quick_notes_client_id ON public.quick_notes(client_id);
+CREATE INDEX IF NOT EXISTS idx_review_campaigns_user_id ON public.review_campaigns(user_id);
+CREATE INDEX IF NOT EXISTS idx_review_campaigns_organization_id ON public.review_campaigns(organization_id);
+CREATE INDEX IF NOT EXISTS idx_review_campaigns_client_id ON public.review_campaigns(client_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_reports_user_id ON public.monthly_reports(user_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_reports_client_id ON public.monthly_reports(client_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_reports_year_month ON public.monthly_reports(year, month);
@@ -465,6 +488,8 @@ DROP TRIGGER IF EXISTS update_content_library_updated_at ON public.content_libra
 CREATE TRIGGER update_content_library_updated_at BEFORE UPDATE ON public.content_library FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 DROP TRIGGER IF EXISTS update_brand_dna_updated_at ON public.brand_dna;
 CREATE TRIGGER update_brand_dna_updated_at BEFORE UPDATE ON public.brand_dna FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_review_campaigns_updated_at ON public.review_campaigns;
+CREATE TRIGGER update_review_campaigns_updated_at BEFORE UPDATE ON public.review_campaigns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 DROP TRIGGER IF EXISTS update_monthly_reports_updated_at ON public.monthly_reports;
 CREATE TRIGGER update_monthly_reports_updated_at BEFORE UPDATE ON public.monthly_reports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -485,6 +510,7 @@ ALTER TABLE public.review_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.negative_reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.positive_review_redirects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_funnel_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quick_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.client_calls ENABLE ROW LEVEL SECURITY;
@@ -646,6 +672,15 @@ CREATE POLICY "Users can update own brand dna" ON public.brand_dna FOR UPDATE US
 DROP POLICY IF EXISTS "Users can delete own brand dna" ON public.brand_dna;
 CREATE POLICY "Users can delete own brand dna" ON public.brand_dna FOR DELETE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own review campaigns" ON public.review_campaigns;
+CREATE POLICY "Users can view own review campaigns" ON public.review_campaigns FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own review campaigns" ON public.review_campaigns;
+CREATE POLICY "Users can insert own review campaigns" ON public.review_campaigns FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own review campaigns" ON public.review_campaigns;
+CREATE POLICY "Users can update own review campaigns" ON public.review_campaigns FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own review campaigns" ON public.review_campaigns;
+CREATE POLICY "Users can delete own review campaigns" ON public.review_campaigns FOR DELETE USING (auth.uid() = user_id);
+
 DROP POLICY IF EXISTS "Users can view own photos" ON public.client_photos;
 CREATE POLICY "Users can view own photos" ON public.client_photos FOR SELECT USING (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Users can insert own photos" ON public.client_photos;
@@ -713,6 +748,7 @@ AND tablename IN (
     'invoices', 
     'onboarding',
     'employees',
+    'review_campaigns',
     'tasks',
     'brand_dna',
     'monthly_reports',
