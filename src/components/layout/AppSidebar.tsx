@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, FileText, LogOut, Settings, UserPlus, Library } from "lucide-react";
+import { Home, Building2, UserCircle, FileText, LogOut, Settings, UserPlus, Library } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
-  { title: "Clients", url: "/clients", icon: Users },
+  { title: "Organisations", url: "/organizations", icon: Building2 },
+  { title: "Contacts", url: "/contacts", icon: UserCircle },
   { title: "Onboarding", url: "/onboarding", icon: UserPlus },
   { title: "Bibliothèque", url: "/library", icon: Library },
   { title: "Facturation", url: "/invoices", icon: FileText },

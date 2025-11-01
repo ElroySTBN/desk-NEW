@@ -6,9 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Auth from "./pages/Auth";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
-import Clients from "./pages/Clients";
-import NewClient from "./pages/NewClient";
-import ClientDetails from "./pages/ClientDetails";
+import Organizations from "./pages/Organizations";
+import Contacts from "./pages/Contacts";
 import Invoices from "./pages/Invoices";
 import Library from "./pages/Library";
 import Settings from "./pages/Settings";
@@ -38,21 +37,22 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/clients" element={<Clients />} />
-        <Route path="/clients/new" element={<NewClient />} />
-        <Route path="/clients/:id" element={<ClientDetails />} />
-        <Route path="/clients/:id/employees" element={<ClientEmployees />} />
-        <Route path="/clients/:id/review-settings" element={<ClientReviewSettings />} />
-        <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
-        <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
-        <Route path="/clients/:clientId/funnel-setup" element={<FunnelSetup />} />
-        <Route path="/clients/:clientId/funnel-content" element={<FunnelContentFlow />} />
+        <Route path="/organizations" element={<Organizations />} />
+        <Route path="/contacts" element={<Contacts />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/library" element={<Library />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/onboarding/create" element={<CreateOnboarding />} />
         <Route path="/onboarding/export/:id" element={<OnboardingExport />} />
+        
+        {/* Legacy routes - redirected to new CRM */}
+        <Route path="/clients/:id/employees" element={<ClientEmployees />} />
+        <Route path="/clients/:id/review-settings" element={<ClientReviewSettings />} />
+        <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
+        <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
+        <Route path="/clients/:clientId/funnel-setup" element={<FunnelSetup />} />
+        <Route path="/clients/:clientId/funnel-content" element={<FunnelContentFlow />} />
           </Route>
           {/* Public routes (no layout) */}
           <Route path="/onboarding/form/:id" element={<OnboardingForm />} />
