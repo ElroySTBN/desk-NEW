@@ -415,6 +415,143 @@ export type Database = {
         }
         Relationships: []
       }
+      organizations: {
+        Row: {
+          id: string
+          user_id: string
+          legal_name: string
+          commercial_name: string | null
+          siret: string | null
+          tva_number: string | null
+          email: string | null
+          phone: string | null
+          website: string | null
+          billing_address: string | null
+          billing_postal_code: string | null
+          billing_city: string | null
+          billing_country: string | null
+          status: string
+          type: string
+          monthly_amount: number | null
+          start_date: string | null
+          next_invoice_date: string | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          legal_name: string
+          commercial_name?: string | null
+          siret?: string | null
+          tva_number?: string | null
+          email?: string | null
+          phone?: string | null
+          website?: string | null
+          billing_address?: string | null
+          billing_postal_code?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          status?: string
+          type?: string
+          monthly_amount?: number | null
+          start_date?: string | null
+          next_invoice_date?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          legal_name?: string
+          commercial_name?: string | null
+          siret?: string | null
+          tva_number?: string | null
+          email?: string | null
+          phone?: string | null
+          website?: string | null
+          billing_address?: string | null
+          billing_postal_code?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          status?: string
+          type?: string
+          monthly_amount?: number | null
+          start_date?: string | null
+          next_invoice_date?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          id: string
+          user_id: string
+          organization_id: string | null
+          first_name: string
+          last_name: string
+          email: string | null
+          phone: string | null
+          mobile: string | null
+          job_title: string | null
+          department: string | null
+          is_main_contact: boolean
+          is_billing_contact: boolean
+          is_technical_contact: boolean
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          organization_id?: string | null
+          first_name: string
+          last_name: string
+          email?: string | null
+          phone?: string | null
+          mobile?: string | null
+          job_title?: string | null
+          department?: string | null
+          is_main_contact?: boolean
+          is_billing_contact?: boolean
+          is_technical_contact?: boolean
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          organization_id?: string | null
+          first_name?: string
+          last_name?: string
+          email?: string | null
+          phone?: string | null
+          mobile?: string | null
+          job_title?: string | null
+          department?: string | null
+          is_main_contact?: boolean
+          is_billing_contact?: boolean
+          is_technical_contact?: boolean
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
