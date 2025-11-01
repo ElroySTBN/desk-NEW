@@ -291,7 +291,11 @@ const Organizations = () => {
               </TableHeader>
               <TableBody>
                 {filteredOrgs.map((org) => (
-                  <TableRow key={org.id}>
+                  <TableRow 
+                    key={org.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/organizations/${org.id}`)}
+                  >
                     <TableCell className="font-medium">{org.legal_name}</TableCell>
                     <TableCell>{org.commercial_name || "-"}</TableCell>
                     <TableCell>
@@ -304,16 +308,8 @@ const Organizations = () => {
                     <TableCell>
                       {org.monthly_amount ? `${org.monthly_amount.toFixed(2)} €` : "-"}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/organizations/${org.id}`)}
-                          title="Voir détails"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

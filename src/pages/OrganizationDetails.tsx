@@ -63,64 +63,24 @@ const OrganizationDetails = () => {
         </div>
       </div>
 
-      {/* Système de Gestion des Avis */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Link to={`/organizations/${id}/employees`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
+      {/* Campagne d'Avis */}
+      <Link to={`/organizations/${id}/review-campaign`}>
+        <Card className="cursor-pointer hover:border-primary transition-colors">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-4 rounded-lg bg-primary/10">
+                <Star className="h-8 w-8 text-primary" />
               </div>
-              <div>
-                <p className="text-sm font-semibold">Équipe</p>
-                <p className="text-xs text-muted-foreground">Membres & QR codes</p>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold">Campagne de Récolte d'Avis</h3>
+                <p className="text-sm text-muted-foreground">
+                  Gérez vos employés, configurez vos funnels, consultez vos rapports et vos avis
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to={`/organizations/${id}/review-settings`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <Star className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Configuration Avis</p>
-                <p className="text-xs text-muted-foreground">Funnel & plateformes</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to={`/organizations/${id}/scan-reports`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <BarChart3 className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Rapports</p>
-                <p className="text-xs text-muted-foreground">Scans & performances</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to={`/organizations/${id}/negative-reviews`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <MessageSquare className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Avis Négatifs</p>
-                <p className="text-xs text-muted-foreground">Feedback privé</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Informations de l'entreprise */}
       <Tabs defaultValue="info" className="space-y-6">

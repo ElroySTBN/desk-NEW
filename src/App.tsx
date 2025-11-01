@@ -21,6 +21,7 @@ import ClientEmployees from "./pages/ClientEmployees";
 import ClientReviewSettings from "./pages/ClientReviewSettings";
 import ClientScanReports from "./pages/ClientScanReports";
 import ClientNegativeReviews from "./pages/ClientNegativeReviews";
+import OrganizationReviewCampaign from "./pages/OrganizationReviewCampaign";
 import FunnelSetup from "./pages/FunnelSetup";
 import FunnelContentFlow from "./pages/FunnelContentFlow";
 import MonthlyReports from "./pages/MonthlyReports";
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/" element={<Dashboard />} />
           <Route path="/organizations" element={<Organizations />} />
           <Route path="/organizations/:id" element={<OrganizationDetails />} />
+          <Route path="/organizations/:id/review-campaign" element={<OrganizationReviewCampaign />} />
           <Route path="/organizations/:id/employees" element={<ClientEmployees />} />
           <Route path="/organizations/:id/review-settings" element={<ClientReviewSettings />} />
           <Route path="/organizations/:id/scan-reports" element={<ClientScanReports />} />
