@@ -133,14 +133,28 @@ const Dashboard = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: photos } = await supabase
+    // Try motivational_photos first, fallback to client_photos
+    const { data: motivationalPhotos } = await supabase
+      .from("motivational_photos")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("display_order", { ascending: true })
+      .limit(10);
+
+    if (motivationalPhotos && motivationalPhotos.length > 0) {
+      setCarouselPhotos(motivationalPhotos);
+      return;
+    }
+
+    // Fallback to client_photos
+    const { data: clientPhotos } = await supabase
       .from("client_photos")
       .select("*")
       .eq("user_id", user.id)
       .order("uploaded_at", { ascending: false })
       .limit(10);
 
-    setCarouselPhotos(photos || []);
+    setCarouselPhotos(clientPhotos || []);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -240,7 +254,7 @@ const Dashboard = () => {
                   alt={photo.photo_name || "Photo motivante"}
                   className="w-full h-full object-cover"
                 />
-              </div>
+                    </div>
             ))}
             {carouselPhotos.length > 1 && (
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
@@ -253,9 +267,9 @@ const Dashboard = () => {
                     }`}
                   />
                 ))}
-              </div>
-            )}
-          </div>
+                  </div>
+                    )}
+                  </div>
         </Card>
       )}
 
@@ -307,13 +321,13 @@ const Dashboard = () => {
               <div className="text-center py-8">
                 <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-success" />
                 <p className="text-muted-foreground">Aucune tâche urgente ! 🎉</p>
-              </div>
-            ) : (
+            </div>
+          ) : (
               <div className="space-y-3">
                 {urgentTasks.map((task) => {
                   const CategoryIcon = getCategoryIcon(task.category);
-                  return (
-                    <div
+                return (
+                  <div
                       key={task.id}
                       className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
                       onClick={() => task.client_id && navigate(`/clients/${task.client_id}`)}
@@ -338,14 +352,14 @@ const Dashboard = () => {
                           <Clock className="h-3 w-3" />
                           {formatTimeUntil(task.due_date || null)}
                         </div>
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
         {/* Accès Rapide */}
         <Card>

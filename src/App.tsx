@@ -8,6 +8,7 @@ import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Organizations from "./pages/Organizations";
 import Contacts from "./pages/Contacts";
+import Tasks from "./pages/Tasks";
 import Invoices from "./pages/Invoices";
 import Library from "./pages/Library";
 import Settings from "./pages/Settings";
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/" element={<Dashboard />} />
           <Route path="/organizations" element={<Organizations />} />
           <Route path="/contacts" element={<Contacts />} />
+          <Route path="/tasks" element={<Tasks />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/library" element={<Library />} />
           <Route path="/settings" element={<Settings />} />
