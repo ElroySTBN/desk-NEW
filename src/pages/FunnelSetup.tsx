@@ -88,7 +88,10 @@ export default function FunnelSetup() {
         // Initialize default config
         const defaultSlug = `${clientData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substr(2, 8)}`;
         setConfig({
-          ...config,
+          funnel_enabled: true,
+          rating_threshold: 4,
+          show_logo: true,
+          show_company_name: true,
           custom_url_slug: defaultSlug,
         });
       }
