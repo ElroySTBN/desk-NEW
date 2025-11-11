@@ -30,3 +30,13 @@ dist-ssr
 
 # Vercel
 .vercel
+
+# Template Invoma complet (on utilise uniquement les composants adaptés)
+src/invoma-invoice-reactjs-template-2024-06-29-02-34-59-utc/
+
+# Documentation et fichiers de setup
+GUIDE_*.md
+RESOLUTION_*.md
+RESUME_*.md
+STATUS_*.md
+SETUP_TDAH_V1.sql

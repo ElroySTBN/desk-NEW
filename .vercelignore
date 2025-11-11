@@ -1,0 +1,13 @@
+# Exclure le template Invoma complet du build Vercel
+# On utilise uniquement les composants adaptés dans src/components/invoices/invoma/
+src/invoma-invoice-reactjs-template-2024-06-29-02-34-59-utc/
+
+# Exclure les fichiers de documentation
+GUIDE_*.md
+RESOLUTION_*.md
+RESUME_*.md
+STATUS_*.md
+
+# Exclure les fichiers de setup SQL (non nécessaires pour le build)
+SETUP_TDAH_V1.sql
+
