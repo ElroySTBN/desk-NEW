@@ -262,30 +262,33 @@ supabase functions deploy check-deadlines
 supabase functions deploy auto-invoice
 ```
 
-### Étape 4 : Configurer les Cron Jobs
+### Étape 4 : Configurer les Cron Jobs (via Vercel)
 
-1. Dans Supabase, allez dans **Database** → **Cron Jobs** (ou utilisez pg_cron)
-2. Créez les cron jobs suivants :
+Les cron jobs sont configurés automatiquement via le fichier `vercel.json`. Vercel les exécutera automatiquement selon le planning défini.
 
-   **Cron 1 : Vérification quotidienne des deadlines**
-   - **Schedule** : `0 9 * * *` (tous les jours à 9h)
-   - **Function** : `check-deadlines`
+**Cron Jobs configurés :**
 
-   **Cron 2 : Génération automatique des factures**
-   - **Schedule** : `0 8 * * *` (tous les jours à 8h)
-   - **Function** : `auto-invoice`
+1. **Vérification quotidienne des deadlines** (`/api/cron/check-deadlines`)
+   - **Schedule** : `0 9 * * *` (tous les jours à 9h00 UTC)
+   - Vérifie les rapports mensuels, factures à générer, tâches urgentes
 
-   **Note** : Les cron jobs peuvent être configurés via SQL dans le SQL Editor :
-   ```sql
-   SELECT cron.schedule(
-     'check-deadlines-daily',
-     '0 9 * * *',
-     $$SELECT net.http_post(
-       url := 'https://votre-project.supabase.co/functions/v1/check-deadlines',
-       headers := '{"Authorization": "Bearer ' || current_setting('app.settings.service_role_key') || '"}'::jsonb
-     )$$
-   );
-   ```
+2. **Génération automatique des factures** (`/api/cron/auto-invoice`)
+   - **Schedule** : `0 8 * * *` (tous les jours à 8h00 UTC)
+   - Génère automatiquement les factures pour les clients dont c'est l'anniversaire d'abonnement
+
+**Configuration automatique :**
+
+Le fichier `vercel.json` est déjà configuré. Une fois votre projet déployé sur Vercel, les cron jobs seront automatiquement activés.
+
+**Vérification :**
+
+1. Allez dans votre projet Vercel → **Settings** → **Cron Jobs**
+2. Vous devriez voir les 2 cron jobs listés
+3. Vous pouvez voir l'historique d'exécution dans cette section
+
+**Note :** Les routes API (`api/cron/check-deadlines.ts` et `api/cron/auto-invoice.ts`) appellent automatiquement vos Edge Functions Supabase. Assurez-vous que les variables d'environnement suivantes sont configurées sur Vercel :
+- `VITE_SUPABASE_URL` ou `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
 ---
 

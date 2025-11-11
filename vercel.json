@@ -1,13 +1,12 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "framework": "vite",
-  "rewrites": [
+  "crons": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "path": "/api/cron/check-deadlines",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/auto-invoice",
+      "schedule": "0 8 * * *"
     }
   ]
 }
-
