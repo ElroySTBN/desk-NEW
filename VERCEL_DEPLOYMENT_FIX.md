@@ -1,9 +1,22 @@
 # 🔧 Guide de Résolution - Déploiement Vercel
 
-## Problème
-L'application ne se déploie pas automatiquement sur Vercel malgré les pushes sur GitHub.
+## ⚠️ Solution Recommandée : Créer un Nouveau Projet
 
-## Solution Étape par Étape
+**Si vous n'avez pas de webhook GitHub ou si le déploiement automatique ne fonctionne pas**, la solution la plus simple est de **créer un nouveau projet Vercel depuis zéro**.
+
+👉 **Consultez le guide complet** : [`NOUVEAU_PROJET_VERCEL.md`](./NOUVEAU_PROJET_VERCEL.md)
+
+Ce guide vous explique étape par étape comment :
+- Créer un nouveau projet Vercel
+- Le connecter à GitHub
+- Configurer toutes les variables d'environnement
+- Vérifier que le déploiement automatique fonctionne
+
+---
+
+## 🔧 Guide de Résolution - Projet Existant
+
+Si vous préférez réparer votre projet existant, suivez ces étapes :
 
 ### Étape 1 : Vérifier la connexion GitHub dans Vercel
 
@@ -42,14 +55,20 @@ Si le statut n'est pas "Connected" ou si vous voyez des erreurs :
 
 1. Dans Vercel → **Settings** → **Environment Variables**
 2. Vérifiez que ces variables sont configurées :
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` (pour les cron jobs)
-   - `TELEGRAM_BOT_TOKEN` (optionnel)
-   - `TELEGRAM_CHAT_ID` (optionnel)
-   - `RESEND_API_KEY` (optionnel)
+
+   **Variables OBLIGATOIRES** (nécessaires pour que l'app fonctionne) :
+   - ✅ `VITE_SUPABASE_URL` - URL de votre projet Supabase
+   - ✅ `VITE_SUPABASE_PUBLISHABLE_KEY` - Clé publique Supabase (anon key)
+
+   **Variables OPTIONNELLES** (pour les fonctionnalités avancées) :
+   - ⚙️ `SUPABASE_SERVICE_ROLE_KEY` - Pour les cron jobs (génération factures, notifications)
+   - ⚙️ `TELEGRAM_BOT_TOKEN` - Pour les notifications Telegram
+   - ⚙️ `TELEGRAM_CHAT_ID` - Pour recevoir les notifications Telegram
+   - ⚙️ `RESEND_API_KEY` - Pour l'envoi d'emails automatiques
 
 3. Pour chaque variable, cochez au moins **Production**
+
+**📋 Guide détaillé** : Voir [`NOUVEAU_PROJET_VERCEL.md`](./NOUVEAU_PROJET_VERCEL.md) section "Étape 3" pour savoir où trouver chaque valeur.
 
 ### Étape 5 : Vérifier les webhooks GitHub
 
@@ -109,4 +128,9 @@ Avant de considérer que c'est résolu, vérifiez :
 - Le fichier `vercel.json` a été créé avec une configuration minimale pour Vite
 - Les routes API dans `api/` seront automatiquement détectées par Vercel
 - Les cron jobs peuvent être configurés plus tard via l'interface Vercel
+
+## 📚 Guides Complémentaires
+
+- **Créer un nouveau projet Vercel** : [`NOUVEAU_PROJET_VERCEL.md`](./NOUVEAU_PROJET_VERCEL.md)
+- **Variables d'environnement détaillées** : [`VARIABLES_ENVIRONNEMENT.md`](./VARIABLES_ENVIRONNEMENT.md)
 
