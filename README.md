@@ -183,4 +183,6 @@ npm run preview  # Prévisualiser le build
 ---
 
 **Version** : 2.0.0  
-**Dernière mise à jour** : Novembre 2024
+**Dernière mise à jour** : Janvier 2025
+**Dépôt GitHub** : https://github.com/ElroySTBN/desk-NEW
+**Statut Déploiement** : ✅ Déploiement automatique Vercel activé
