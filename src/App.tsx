@@ -62,14 +62,6 @@ const App = () => (
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/onboarding/create" element={<CreateOnboarding />} />
           <Route path="/onboarding/export/:id" element={<OnboardingExport />} />
-          
-          {/* Legacy routes - redirected to new CRM */}
-          <Route path="/clients/:id/employees" element={<ClientEmployees />} />
-          <Route path="/clients/:id/review-settings" element={<FunnelSetup />} />
-          <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
-          <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
-          <Route path="/clients/:clientId/funnel-setup" element={<FunnelSetup />} />
-          <Route path="/clients/:clientId/funnel-content" element={<FunnelContentFlow />} />
             </Route>
             {/* Public routes (no layout) */}
             <Route path="/onboarding/form/:id" element={<OnboardingForm />} />

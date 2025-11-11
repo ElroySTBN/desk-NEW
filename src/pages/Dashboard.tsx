@@ -220,7 +220,7 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">🚀 Centre de Pilotage RAISEDESK</h1>
+          <h1 className="text-4xl font-bold tracking-tight">✨ RaiseMed.IA - Dashboard TDAH</h1>
           <p className="text-muted-foreground mt-2">
             {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
           </p>
