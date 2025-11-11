@@ -1,4 +1,4 @@
-import parser from "html-react-parser";
+import parse from "html-react-parser";
 
 interface InvoiceToPayToProps {
   title: string;
@@ -10,9 +10,9 @@ export default function InvoiceToPayTo({ title, subTitle, varient }: InvoiceToPa
   return (
     <div className={varient || ""}>
       <p className="tm_mb2">
-        <b className="tm_primary_color">{parser(title)}:</b>
+        <b className="tm_primary_color">{parse(title)}:</b>
       </p>
-      <p>{parser(subTitle)}</p>
+      <p>{parse(subTitle)}</p>
     </div>
   );
 }

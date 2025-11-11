@@ -1,4 +1,4 @@
-import parser from "html-react-parser";
+import parse from "html-react-parser";
 
 interface PaymentInfoProps {
   varient?: string;
@@ -20,12 +20,12 @@ export default function PaymentInfo({
   return (
     <div className={varient || ""}>
       <p className="tm_mb2">
-        <b className="tm_primary_color">{parser(title)}:</b>
+        <b className="tm_primary_color">{parse(title)}:</b>
       </p>
       {author && <p className="tm_mb0">{author}</p>}
       {cardType && cardNumber && (
         <p className="tm_mb0">
-          {cardType} - {parser(cardNumber)}
+          {cardType} - {parse(cardNumber)}
         </p>
       )}
       <p className="tm_mb0">Amount: {amount.toFixed(2)} €</p>
