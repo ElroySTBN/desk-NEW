@@ -6,35 +6,40 @@ import { fr } from "date-fns/locale";
 interface Client {
   id: string;
   name: string;
-  company: string | null;
-  email: string | null;
-  monthly_amount: number | null;
-  start_date: string | null;
+  company?: string | null;
+  email?: string | null;
+  montant_mensuel?: number | null;
+  date_anniversaire_abonnement?: string | null;
 }
 
 /**
- * Generate invoice number (format: RMD-YYYY-NNN)
+ * Generate invoice number using database function
  */
 async function generateInvoiceNumber(): Promise<string> {
-  const year = new Date().getFullYear();
+  const { data, error } = await supabase.rpc("generate_invoice_number");
   
-  // Get count of invoices this year
-  const { count } = await supabase
-    .from("invoices")
-    .select("*", { count: "exact", head: true })
-    .gte("date", `${year}-01-01`)
-    .lte("date", `${year}-12-31`);
-
-  const nextNumber = (count || 0) + 1;
-  return `RMD-${year}-${String(nextNumber).padStart(3, "0")}`;
+  if (error) {
+    // Fallback if function doesn't exist
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, "0");
+    const { count } = await supabase
+      .from("invoices")
+      .select("*", { count: "exact", head: true })
+      .like("numero_facture", `FACT-${year}-${month}-%`);
+    
+    const nextNumber = (count || 0) + 1;
+    return `FACT-${year}-${month}-${String(nextNumber).padStart(4, "0")}`;
+  }
+  
+  return data || `FACT-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-0001`;
 }
 
 /**
  * Create invoice for a client
  */
 export async function createInvoiceForClient(client: Client) {
-  if (!client.monthly_amount || !client.email) {
-    throw new Error("Client must have monthly_amount and email configured");
+  if (!client.montant_mensuel || !client.email) {
+    throw new Error("Client must have montant_mensuel and email configured");
   }
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -42,9 +47,10 @@ export async function createInvoiceForClient(client: Client) {
 
   const invoiceNumber = await generateInvoiceNumber();
   const today = new Date();
-  const amountHT = client.monthly_amount;
-  const tva = amountHT * 0.20;
-  const amountTTC = amountHT + tva;
+  const montantHT = Number(client.montant_mensuel);
+  const tvaRate = 20;
+  const tva = montantHT * (tvaRate / 100);
+  const montantTTC = montantHT + tva;
 
   // Create invoice in database
   const { data: invoice, error } = await supabase
@@ -52,15 +58,13 @@ export async function createInvoiceForClient(client: Client) {
     .insert({
       user_id: user.id,
       client_id: client.id,
-      invoice_number: invoiceNumber,
-      date: today.toISOString().split("T")[0],
-      due_date: new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // +15 days
-      description: `Services RaiseMed.IA - ${format(today, "MMMM yyyy", { locale: fr })}`,
-      amount_ht: amountHT,
-      tva_rate: 20,
-      tva_amount: tva,
-      amount_ttc: amountTTC,
-      status: "en_attente",
+      numero_facture: invoiceNumber,
+      montant: montantHT,
+      montant_ttc: montantTTC,
+      tva_rate: tvaRate,
+      date_emission: today.toISOString().split("T")[0],
+      date_echeance: new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // +15 days
+      statut: "envoyee",
     })
     .select()
     .single();
@@ -76,7 +80,7 @@ export async function createInvoiceForClient(client: Client) {
 /**
  * Send invoice email to client
  */
-export async function sendInvoiceEmail(client: Client, invoiceNumber: string, amount: number) {
+export async function sendInvoiceEmail(client: Client, invoiceNumber: string, montantTTC: number) {
   if (!client.email) {
     throw new Error("Client has no email address");
   }
@@ -87,7 +91,7 @@ export async function sendInvoiceEmail(client: Client, invoiceNumber: string, am
       "CLIENT_NAME": client.company || client.name,
       "INVOICE_NUMBER": invoiceNumber,
       "MONTH": format(new Date(), "MMMM yyyy", { locale: fr }),
-      "AMOUNT": amount.toLocaleString("fr-FR"),
+      "AMOUNT": montantTTC.toLocaleString("fr-FR"),
     }
   );
 
@@ -118,14 +122,20 @@ export async function generateAndSendInvoice(client: Client) {
     // 2. Send email
     await sendInvoiceEmail(
       client,
-      invoice.invoice_number,
-      invoice.amount_ttc
+      invoice.numero_facture,
+      Number(invoice.montant_ttc)
     );
+
+    // 3. Update invoice with send date
+    await supabase
+      .from("invoices")
+      .update({ date_envoi: new Date().toISOString() })
+      .eq("id", invoice.id);
 
     return {
       success: true,
       invoice,
-      message: `Facture ${invoice.invoice_number} créée et envoyée à ${client.email}`,
+      message: `Facture ${invoice.numero_facture} créée et envoyée à ${client.email}`,
     };
   } catch (error: any) {
     console.error("Error in generateAndSendInvoice:", error);
@@ -147,9 +157,9 @@ export async function getClientsDueToday(): Promise<Client[]> {
     .from("clients")
     .select("*")
     .eq("user_id", user.id)
-    .eq("status", "actif")
-    .not("start_date", "is", null)
-    .not("monthly_amount", "is", null)
+    .eq("statut", "actif")
+    .not("date_anniversaire_abonnement", "is", null)
+    .not("montant_mensuel", "is", null)
     .not("email", "is", null);
 
   if (!clients) return [];
@@ -157,11 +167,11 @@ export async function getClientsDueToday(): Promise<Client[]> {
   const today = new Date();
   const todayDay = today.getDate();
 
-  // Filter clients whose start_date day matches today
+  // Filter clients whose date_anniversaire_abonnement day matches today
   return clients.filter((client) => {
-    if (!client.start_date) return false;
-    const startDate = new Date(client.start_date);
-    return startDate.getDate() === todayDay;
+    if (!client.date_anniversaire_abonnement) return false;
+    const anniversaryDate = new Date(client.date_anniversaire_abonnement);
+    return anniversaryDate.getDate() === todayDay;
   });
 }
 

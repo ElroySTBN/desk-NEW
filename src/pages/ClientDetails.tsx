@@ -11,6 +11,8 @@ import { ClientInvoicesTab } from "@/components/client/ClientInvoicesTab";
 import { ClientEmailsTab } from "@/components/client/ClientEmailsTab";
 import { ClientOnboardingTab } from "@/components/client/ClientOnboardingTab";
 import { ClientTasksTab } from "@/components/client/ClientTasksTab";
+import { ClientNotesTab } from "@/components/client/ClientNotesTab";
+import { ClientDocumentsTab } from "@/components/client/ClientDocumentsTab";
 import { QuickEmailActions } from "@/components/client/QuickEmailActions";
 import { ClientBrandDNA } from "@/components/client/ClientBrandDNA";
 import { ClientHistoryTab } from "@/components/client/ClientHistoryTab";
@@ -140,19 +142,25 @@ const ClientDetails = () => {
       </div>
 
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-10">
           <TabsTrigger value="info">Informations</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="brand-dna">Brand DNA</TabsTrigger>
           <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
           <TabsTrigger value="tasks">Tâches</TabsTrigger>
           <TabsTrigger value="kpis">KPIs</TabsTrigger>
           <TabsTrigger value="invoices">Factures</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="history">Historique</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info">
           <ClientInfoTab client={client} onUpdate={fetchClient} />
+        </TabsContent>
+
+        <TabsContent value="notes">
+          <ClientNotesTab clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="brand-dna">
@@ -177,6 +185,10 @@ const ClientDetails = () => {
 
         <TabsContent value="invoices">
           <ClientInvoicesTab clientId={client.id} />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <ClientDocumentsTab clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="history">

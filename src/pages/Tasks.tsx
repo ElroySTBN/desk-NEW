@@ -20,22 +20,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Calendar, AlertCircle, CheckCircle2, Circle, GripVertical } from "lucide-react";
+import { Plus, Calendar, AlertCircle, CheckCircle2, Circle, GripVertical, Filter, Clock, Archive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { sortTasksByPriority, getPriorityColor, getPriorityLabel, type Task as TaskType } from "@/components/tasks/TaskPrioritizer";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  category: string;
-  priority: string;
-  urgency: boolean;
-  status: "todo" | "in_progress" | "done";
-  due_date?: string;
-  client_id?: string;
+interface Task extends TaskType {
+  category?: string;
   client?: {
+    id: string;
     name: string;
     company?: string;
   };
@@ -52,11 +46,14 @@ const statusConfig = [
 const Tasks = () => {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [sortedTasks, setSortedTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
+  const [filterClient, setFilterClient] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -82,13 +79,38 @@ const Tasks = () => {
         .from("tasks")
         .select(`
           *,
-          client:clients!left(id, name, company)
+          clients!left(id, name, company)
         `)
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .in("status", ["todo", "in_progress", "done"]);
 
       if (tasksError) throw tasksError;
-      setTasks(tasksData || []);
+      
+      // Convertir au format Task et utiliser le prioritizer
+      const formattedTasks: Task[] = (tasksData || []).map(task => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        priority: (task.priority || 'medium') as 'urgent' | 'high' | 'medium' | 'low',
+        status: task.status as 'todo' | 'in_progress' | 'done' | 'archived',
+        deadline: task.deadline || undefined,
+        recurring: task.recurring || false,
+        is_blocking: task.is_blocking || false,
+        category: task.category,
+        client_id: task.client_id,
+        client: task.clients ? {
+          id: task.clients.id,
+          name: task.clients.name,
+          company: task.clients.company,
+        } : undefined,
+        created_at: task.created_at,
+        updated_at: task.updated_at,
+      }));
+
+      // Utiliser le prioritizer pour trier
+      const sorted = sortTasksByPriority(formattedTasks);
+      setTasks(formattedTasks);
+      setSortedTasks(sorted);
 
       // Fetch clients for dropdown
       const { data: clientsData, error: clientsError } = await supabase
@@ -120,7 +142,7 @@ const Tasks = () => {
         priority: task.priority,
         urgency: task.urgency,
         status: task.status,
-        due_date: task.due_date || "",
+        due_date: task.deadline || "",
         client_id: task.client_id || "none",
       });
     } else {
@@ -145,9 +167,14 @@ const Tasks = () => {
       if (!user) throw new Error("User not authenticated");
 
       const dataToSave = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        priority: formData.priority,
+        status: formData.status,
+        deadline: formData.due_date || null,
         client_id: formData.client_id === "none" ? null : formData.client_id,
-        due_date: formData.due_date || null,
+        is_blocking: formData.urgency,
       };
 
       if (editingTask) {
@@ -242,29 +269,41 @@ const Tasks = () => {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "destructive";
-      case "high":
-        return "default";
-      case "medium":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  };
+  // Filtrer les tâches
+  const filteredTasks = sortedTasks.filter(task => {
+    if (filterClient !== "all" && task.client_id !== filterClient) return false;
+    if (filterPriority !== "all" && task.priority !== filterPriority) return false;
+    return true;
+  });
 
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "Urgent";
-      case "high":
-        return "Haute";
-      case "medium":
-        return "Moyenne";
-      default:
-        return "Basse";
+  const handleQuickAction = async (taskId: string, action: 'postpone' | 'archive') => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    try {
+      if (action === 'postpone') {
+        // Reporter à demain
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        await supabase
+          .from("tasks")
+          .update({ deadline: tomorrow.toISOString() })
+          .eq("id", taskId);
+        toast({ title: "✅ Tâche reportée à demain" });
+      } else if (action === 'archive') {
+        await supabase
+          .from("tasks")
+          .update({ status: 'archived' })
+          .eq("id", taskId);
+        toast({ title: "✅ Tâche archivée" });
+      }
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -287,7 +326,7 @@ const Tasks = () => {
         <div>
           <h1 className="text-4xl font-bold tracking-tight">📋 Tâches</h1>
           <p className="text-muted-foreground mt-2">
-            Gérez vos tâches et projets
+            Système de priorisation intelligente TDAH
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2">
@@ -295,6 +334,40 @@ const Tasks = () => {
           Nouvelle tâche
         </Button>
       </div>
+
+      {/* Filtres */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-4 items-center">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={filterClient} onValueChange={setFilterClient}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Tous les clients" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les clients</SelectItem>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.company || client.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterPriority} onValueChange={setFilterPriority}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Toutes les priorités" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les priorités</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+                <SelectItem value="high">Haute</SelectItem>
+                <SelectItem value="medium">Moyenne</SelectItem>
+                <SelectItem value="low">Basse</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-3 gap-4">
         {statusConfig.map((status) => (
@@ -313,9 +386,12 @@ const Tasks = () => {
             </Card>
 
             <div className="space-y-2">
-              {tasks
+              {filteredTasks
                 .filter((t) => t.status === status.id)
-                .map((task) => (
+                .map((task) => {
+                  const priorityColor = getPriorityColor(task.priority, task.calculated_priority_score);
+                  const priorityLabel = getPriorityLabel(task.priority, task.calculated_priority_score);
+                  return (
                   <Card
                     key={task.id}
                     className="cursor-move hover:shadow-md transition-shadow"
@@ -373,46 +449,67 @@ const Tasks = () => {
 
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge
-                            variant={getPriorityColor(task.priority) as any}
+                            variant={priorityColor as any}
                             className="text-xs"
                           >
-                            {getPriorityLabel(task.priority)}
+                            {priorityLabel}
                           </Badge>
 
-                          {task.urgency && (
+                          {task.is_blocking && (
                             <Badge variant="destructive" className="text-xs">
                               <AlertCircle className="h-3 w-3 mr-1" />
-                              Urgent
+                              Bloquante
                             </Badge>
                           )}
 
-                          {task.due_date && (
+                          {task.deadline && (
                             <Badge
                               variant={
-                                isOverdue(task.due_date) ? "destructive" : "outline"
+                                isOverdue(task.deadline) ? "destructive" : "outline"
                               }
                               className="text-xs"
                             >
-                              📅{" "}
-                              {format(new Date(task.due_date), "dd MMM", {
+                              <Clock className="h-3 w-3 mr-1" />
+                              {format(new Date(task.deadline), "dd MMM", {
                                 locale: fr,
                               })}
                             </Badge>
                           )}
                         </div>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenDialog(task)}
-                          className="w-full mt-2"
-                        >
-                          Modifier
-                        </Button>
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenDialog(task)}
+                            className="flex-1"
+                          >
+                            Modifier
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleQuickAction(task.id, 'postpone')}
+                            className="gap-1"
+                            title="Reporter à demain"
+                          >
+                            <Clock className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleQuickAction(task.id, 'archive')}
+                            className="gap-1"
+                            title="Archiver"
+                          >
+                            <Archive className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                );
+              })}
             </div>
           </div>
         ))}
@@ -513,7 +610,7 @@ const Tasks = () => {
                 <Label htmlFor="due_date">Deadline</Label>
                 <Input
                   id="due_date"
-                  type="date"
+                  type="datetime-local"
                   value={formData.due_date}
                   onChange={(e) =>
                     setFormData({ ...formData, due_date: e.target.value })
@@ -533,7 +630,7 @@ const Tasks = () => {
                 className="h-4 w-4"
               />
               <Label htmlFor="urgency" className="cursor-pointer">
-                Marquer comme urgent
+                Tâche bloquante (bloque d'autres tâches)
               </Label>
             </div>
           </div>

@@ -9,18 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import { format, differenceInHours, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AutoAlerts } from "@/components/dashboard/AutoAlerts";
+import { getTopPriorityTasks, getPriorityColor, getPriorityLabel, type Task } from "@/components/tasks/TaskPrioritizer";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  category: string;
-  priority: string;
-  urgency: boolean;
-  due_date?: string;
-  status: string;
-  client_id?: string;
+interface TaskWithClient extends Task {
+  category?: string;
   client?: {
+    id: string;
     name: string;
     company?: string;
   };
@@ -35,7 +29,8 @@ const Dashboard = () => {
     totalInvoicedThisMonth: 0,
     totalFacture: 0,
   });
-  const [urgentTasks, setUrgentTasks] = useState<Task[]>([]);
+  const [urgentTasks, setUrgentTasks] = useState<TaskWithClient[]>([]);
+  const [backlogTasks, setBacklogTasks] = useState<TaskWithClient[]>([]);
   const [carouselPhotos, setCarouselPhotos] = useState<any[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -69,33 +64,33 @@ const Dashboard = () => {
 
     const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-    // Active organizations + MRR
+    // Active clients + MRR (nouveau schéma)
     const { data: activeClients, count: activeCount } = await supabase
-      .from("organizations")
-      .select("monthly_amount, id", { count: "exact" })
+      .from("clients")
+      .select("montant_mensuel, id", { count: "exact" })
       .eq("user_id", user.id)
-      .eq("status", "client");
+      .eq("statut", "actif");
 
-    const mrr = activeClients?.reduce((sum, c) => sum + (Number(c.monthly_amount) || 0), 0) || 0;
+    const mrr = activeClients?.reduce((sum, c) => sum + (Number(c.montant_mensuel) || 0), 0) || 0;
 
     // Total facturé ce mois
     const { data: monthlyInvoices } = await supabase
       .from("invoices")
-      .select("amount_ttc")
+      .select("montant_ttc")
       .eq("user_id", user.id)
-      .eq("status", "payee")
-      .gte("created_at", firstDayOfMonth.toISOString());
+      .eq("statut", "payee")
+      .gte("date_emission", firstDayOfMonth.toISOString().split("T")[0]);
 
-    const totalInvoicedThisMonth = monthlyInvoices?.reduce((sum, inv) => sum + Number(inv.amount_ttc), 0) || 0;
+    const totalInvoicedThisMonth = monthlyInvoices?.reduce((sum, inv) => sum + Number(inv.montant_ttc), 0) || 0;
 
     // Total facturé
     const { data: allInvoices } = await supabase
       .from("invoices")
-      .select("amount_ttc")
+      .select("montant_ttc")
       .eq("user_id", user.id)
-      .eq("status", "payee");
+      .eq("statut", "payee");
 
-    const totalFacture = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_ttc), 0) || 0;
+    const totalFacture = allInvoices?.reduce((sum, inv) => sum + Number(inv.montant_ttc), 0) || 0;
 
     setStats({
       activeClients: activeCount || 0,
@@ -109,10 +104,7 @@ const Dashboard = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Tâches urgentes ou avec deadline dans 48h
-    const twoDaysFromNow = new Date();
-    twoDaysFromNow.setHours(twoDaysFromNow.getHours() + 48);
-
+    // Récupérer toutes les tâches actives
     const { data: tasks } = await supabase
       .from("tasks")
       .select(`
@@ -120,13 +112,41 @@ const Dashboard = () => {
         clients!left(id, name, company)
       `)
       .eq("user_id", user.id)
-      .in("status", ["todo", "in_progress"])
-      .or(`urgency.eq.true,priority.eq.urgent,due_date.lte.${twoDaysFromNow.toISOString()}`)
-      .order("priority", { ascending: false })
-      .order("due_date", { ascending: true })
-      .limit(10);
+      .in("status", ["todo", "in_progress"]);
 
-    setUrgentTasks(tasks || []);
+    if (!tasks) {
+      setUrgentTasks([]);
+      setBacklogTasks([]);
+      return;
+    }
+
+    // Convertir au format Task et utiliser le prioritizer
+    const formattedTasks: TaskWithClient[] = tasks.map(task => ({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      priority: task.priority as 'urgent' | 'high' | 'medium' | 'low',
+      status: task.status as 'todo' | 'in_progress' | 'done' | 'archived',
+      deadline: task.deadline || undefined,
+      recurring: task.recurring || false,
+      is_blocking: task.is_blocking || false,
+      category: task.category,
+      client_id: task.client_id,
+      client: task.clients ? {
+        id: task.clients.id,
+        name: task.clients.name,
+        company: task.clients.company,
+      } : undefined,
+    }));
+
+    // Utiliser le prioritizer pour séparer focus et backlog
+    const topPriority = getTopPriorityTasks(formattedTasks, 5);
+    const backlog = formattedTasks.filter(
+      task => !topPriority.find(t => t.id === task.id)
+    );
+
+    setUrgentTasks(topPriority);
+    setBacklogTasks(backlog);
   };
 
   const fetchCarouselPhotos = async () => {
@@ -157,31 +177,6 @@ const Dashboard = () => {
     setCarouselPhotos(clientPhotos || []);
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "destructive";
-      case "high":
-        return "default";
-      case "medium":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "Urgent";
-      case "high":
-        return "Haute";
-      case "medium":
-        return "Moyenne";
-      default:
-        return "Basse";
-    }
-  };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -231,9 +226,9 @@ const Dashboard = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate("/organizations")} size="lg" className="gap-2">
+          <Button onClick={() => navigate("/clients")} size="lg" className="gap-2">
             <Plus className="h-4 w-4" />
-            Nouvelle Entreprise
+            Nouveau Client
           </Button>
         </div>
       </div>
@@ -307,30 +302,33 @@ const Dashboard = () => {
       <AutoAlerts />
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Focus du jour - Tâches urgentes */}
+        {/* Focus du jour - Maximum 5 tâches prioritaires */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Focus du Jour
             </CardTitle>
-            <CardDescription>Tâches urgentes à traiter dans les 48h</CardDescription>
+            <CardDescription>Maximum 5 tâches prioritaires - Interface épurée TDAH</CardDescription>
           </CardHeader>
           <CardContent>
             {urgentTasks.length === 0 ? (
               <div className="text-center py-8">
-              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-success" />
+                <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-500" />
                 <p className="text-muted-foreground">Aucune tâche urgente ! 🎉</p>
-            </div>
-          ) : (
+              </div>
+            ) : (
               <div className="space-y-3">
                 {urgentTasks.map((task) => {
-                  const CategoryIcon = getCategoryIcon(task.category);
-                return (
-                  <div
+                  const CategoryIcon = getCategoryIcon(task.category || '');
+                  const priorityColor = getPriorityColor(task.priority, task.calculated_priority_score);
+                  const priorityLabel = getPriorityLabel(task.priority, task.calculated_priority_score);
+                  
+                  return (
+                    <div
                       key={task.id}
                       className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
-                      onClick={() => task.client_id && navigate(`/clients/${task.client_id}`)}
+                      onClick={() => task.client_id ? navigate(`/clients/${task.client_id}`) : navigate('/tasks')}
                     >
                       <CategoryIcon className="h-5 w-5 mt-0.5 text-muted-foreground flex-shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -345,21 +343,28 @@ const Dashboard = () => {
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <Badge variant={getPriorityColor(task.priority)}>
-                          {getPriorityLabel(task.priority)}
+                        <Badge variant={priorityColor as any}>
+                          {priorityLabel}
                         </Badge>
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {formatTimeUntil(task.due_date || null)}
+                          {formatTimeUntil(task.deadline || null)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  );
+                })}
+              </div>
+            )}
+            {backlogTasks.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-muted-foreground text-center">
+                  {backlogTasks.length} tâche{backlogTasks.length > 1 ? 's' : ''} dans le backlog
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Accès Rapide */}
         <Card>
@@ -371,7 +376,7 @@ const Dashboard = () => {
             <Button
               variant="outline"
               className="h-14 text-base justify-start gap-3"
-              onClick={() => navigate("/organizations")}
+              onClick={() => navigate("/clients")}
             >
               <Plus className="h-5 w-5" />
               Créer un Client
@@ -395,10 +400,10 @@ const Dashboard = () => {
             <Button
               variant="outline"
               className="h-14 text-base justify-start gap-3"
-              onClick={() => navigate("/clients")}
+              onClick={() => navigate("/tasks")}
             >
-              <Users className="h-5 w-5" />
-              Voir mes Clients
+              <Calendar className="h-5 w-5" />
+              Voir toutes les Tâches
             </Button>
           </CardContent>
         </Card>
