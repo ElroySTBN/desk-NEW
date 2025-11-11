@@ -186,3 +186,8 @@ npm run preview  # Prévisualiser le build
 **Dernière mise à jour** : Janvier 2025
 **Dépôt GitHub** : https://github.com/ElroySTBN/desk-NEW
 **Statut Déploiement** : ✅ Déploiement automatique Vercel activé
+
+## 🔄 Test Déploiement Automatique
+
+Ce commit teste si le déploiement automatique Vercel fonctionne correctement.
+Si vous voyez ce message dans Vercel, c'est que le déploiement automatique fonctionne ! ✅
