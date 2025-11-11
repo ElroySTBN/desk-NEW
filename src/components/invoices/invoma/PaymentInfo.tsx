@@ -20,7 +20,7 @@ export default function PaymentInfo({
   return (
     <div className={varient || ""}>
       <p className="tm_mb2">
-        <b className="tm_primary_color">{parse(title)}:</b>
+        <b className="tm_primary_color">{parse(`${title}:`)}</b>
       </p>
       {author && <p className="tm_mb0">{author}</p>}
       {cardType && cardNumber && (

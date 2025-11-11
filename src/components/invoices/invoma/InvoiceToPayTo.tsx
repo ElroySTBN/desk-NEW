@@ -10,7 +10,7 @@ export default function InvoiceToPayTo({ title, subTitle, varient }: InvoiceToPa
   return (
     <div className={varient || ""}>
       <p className="tm_mb2">
-        <b className="tm_primary_color">{parse(title)}:</b>
+        <b className="tm_primary_color">{title ? `${parse(title)}:` : ""}</b>
       </p>
       <p>{parse(subTitle)}</p>
     </div>
