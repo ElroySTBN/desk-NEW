@@ -47,7 +47,7 @@ const Library = () => {
       const { data: clientsData, error: clientsError } = await supabase
         .from("clients")
         .select("id, name, company")
-        .eq("status", "actif");
+        .eq("statut", "actif");
 
       if (clientsError) throw clientsError;
       if (clientsData) setClients(clientsData);

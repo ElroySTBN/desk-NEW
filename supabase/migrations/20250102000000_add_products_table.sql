@@ -96,3 +96,4 @@ CREATE TRIGGER update_products_updated_at
 COMMENT ON TABLE public.products IS 'Catalogue des produits et services pour la facturation';
 
 
+

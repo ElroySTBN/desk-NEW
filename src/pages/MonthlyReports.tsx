@@ -55,7 +55,7 @@ const MonthlyReports = () => {
         .from("clients")
         .select("id, name, company")
         .eq("user_id", user.id)
-        .eq("status", "actif");
+        .eq("statut", "actif");
 
       setClients(clientsData || []);
 

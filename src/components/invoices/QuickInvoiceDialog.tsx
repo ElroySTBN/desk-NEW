@@ -149,9 +149,9 @@ function ClientSelectionStep({ onSelect, selectedClientId }: { onSelect: (id: st
 
     const { data } = await supabase
       .from("clients")
-      .select("id, name, company, status")
+      .select("id, name, company, statut")
       .eq("user_id", user.id)
-      .eq("status", "actif")
+      .eq("statut", "actif")
       .order("name");
 
     if (data) setClients(data);

@@ -150,3 +150,4 @@ Après avoir appliqué la migration et testé :
 - ✅ **Aucune erreur** : "violate check constraint" n'apparaît plus
 
 
+

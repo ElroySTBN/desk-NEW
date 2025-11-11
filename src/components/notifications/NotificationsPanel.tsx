@@ -61,7 +61,7 @@ export const NotificationsPanel = () => {
       .from("clients")
       .select("id, name, start_date, monthly_amount")
       .eq("user_id", user.id)
-      .eq("status", "actif")
+      .eq("statut", "actif")
       .not("start_date", "is", null);
 
     if (clients) {
