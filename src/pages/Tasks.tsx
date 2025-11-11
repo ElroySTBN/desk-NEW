@@ -25,6 +25,16 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { sortTasksByPriority, getPriorityColor, getPriorityLabel, type Task as TaskType } from "@/components/tasks/TaskPrioritizer";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  useDraggable,
+  useDroppable,
+  closestCenter,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Task extends TaskType {
   category?: string;
@@ -43,6 +53,203 @@ const statusConfig = [
   { id: "done", label: "Terminé", icon: CheckCircle2, color: "bg-green-500" },
 ];
 
+// Composant TaskCard draggable
+function TaskCard({ task, onEdit, onDelete, onQuickAction, getPriorityColor, getPriorityLabel, isOverdue, format }: {
+  task: Task;
+  onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
+  onQuickAction: (id: string, action: 'postpone' | 'archive') => void;
+  getPriorityColor: (priority: string, score?: number) => string;
+  getPriorityLabel: (priority: string, score?: number) => string;
+  isOverdue: (dueDate?: string) => boolean;
+  format: (date: Date, formatStr: string, options?: any) => string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const priorityColor = getPriorityColor(task.priority, task.calculated_priority_score);
+  const priorityLabel = getPriorityLabel(task.priority, task.calculated_priority_score);
+
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      <Card className="cursor-move hover:shadow-md transition-shadow">
+        <CardContent className="pt-6">
+          <div className="space-y-2">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="font-semibold">
+                    {task.title}
+                  </h3>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(task.id);
+                }}
+                className="h-6 w-6"
+              >
+                ×
+              </Button>
+            </div>
+
+            {task.description && (
+              <p className="text-sm text-muted-foreground">
+                {task.description}
+              </p>
+            )}
+
+            {task.client && (
+              <p className="text-xs text-muted-foreground">
+                📁 {task.client.company || task.client.name}
+              </p>
+            )}
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge
+                variant={priorityColor as any}
+                className="text-xs"
+              >
+                {priorityLabel}
+              </Badge>
+
+              {task.is_blocking && (
+                <Badge variant="destructive" className="text-xs">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Bloquante
+                </Badge>
+              )}
+
+              {task.deadline && (
+                <Badge
+                  variant={
+                    isOverdue(task.deadline) ? "destructive" : "outline"
+                  }
+                  className="text-xs"
+                >
+                  <Clock className="h-3 w-3 mr-1" />
+                  {format(new Date(task.deadline), "dd MMM", {
+                    locale: fr,
+                  })}
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(task);
+                }}
+                className="flex-1"
+              >
+                Modifier
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickAction(task.id, 'postpone');
+                }}
+                className="gap-1"
+                title="Reporter à demain"
+              >
+                <Clock className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickAction(task.id, 'archive');
+                }}
+                className="gap-1"
+                title="Archiver"
+              >
+                <Archive className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Composant StatusColumn droppable
+function StatusColumn({
+  status,
+  tasks,
+  onEdit,
+  onDelete,
+  onQuickAction,
+  getPriorityColor,
+  getPriorityLabel,
+  isOverdue,
+  format,
+}: {
+  status: typeof statusConfig[0];
+  tasks: Task[];
+  onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
+  onQuickAction: (id: string, action: 'postpone' | 'archive') => void;
+  getPriorityColor: (priority: string, score?: number) => string;
+  getPriorityLabel: (priority: string, score?: number) => string;
+  isOverdue: (dueDate?: string) => boolean;
+  format: (date: Date, formatStr: string, options?: any) => string;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: status.id,
+  });
+
+  return (
+    <div ref={setNodeRef} className="space-y-4 min-h-[200px]">
+      <Card className={isOver ? "ring-2 ring-primary" : ""}>
+        <CardHeader className={`${status.color} text-white`}>
+          <CardTitle className="flex items-center gap-2">
+            <status.icon className="h-5 w-5" />
+            {status.label}
+          </CardTitle>
+        </CardHeader>
+      </Card>
+
+      <div className="space-y-2">
+        {tasks.length === 0 && (
+          <div className="text-center text-sm text-muted-foreground py-8 border-2 border-dashed rounded-lg">
+            Déposez une tâche ici
+          </div>
+        )}
+        {tasks.map((task) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onQuickAction={onQuickAction}
+            getPriorityColor={getPriorityColor}
+            getPriorityLabel={getPriorityLabel}
+            isOverdue={isOverdue}
+            format={format}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const Tasks = () => {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -51,7 +258,7 @@ const Tasks = () => {
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [draggedTask, setDraggedTask] = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [filterClient, setFilterClient] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [formData, setFormData] = useState({
@@ -168,11 +375,11 @@ const Tasks = () => {
 
       const dataToSave = {
         title: formData.title,
-        description: formData.description,
-        category: formData.category,
+        description: formData.description || null,
+        category: formData.category || null, // Permettre NULL pour category
         priority: formData.priority,
         status: formData.status,
-        deadline: formData.due_date || null,
+        deadline: formData.due_date ? new Date(formData.due_date).toISOString() : null,
         client_id: formData.client_id === "none" ? null : formData.client_id,
         is_blocking: formData.urgency,
       };
@@ -226,17 +433,17 @@ const Tasks = () => {
     }
   };
 
-  const handleDragStart = (event: any) => {
-    setDraggedTask(event.active.id as string);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveTaskId(event.active.id as string);
   };
 
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    setDraggedTask(null);
+    setActiveTaskId(null);
 
     if (!over) return;
 
-    const taskId = active.id;
+    const taskId = active.id as string;
     const newStatus = over.id as Task["status"];
 
     if (!taskId || !newStatus) return;
@@ -249,6 +456,9 @@ const Tasks = () => {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
+    setSortedTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
 
     // Update in database
     try {
@@ -259,6 +469,8 @@ const Tasks = () => {
 
       if (error) throw error;
       toast({ title: "✅ Tâche déplacée" });
+      // Refresh data to ensure consistency
+      fetchData();
     } catch (error) {
       toast({
         title: "Erreur",
@@ -369,151 +581,53 @@ const Tasks = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-4">
-        {statusConfig.map((status) => (
-          <div
-            key={status.id}
-            id={status.id}
-            className="space-y-4"
-          >
-            <Card>
-              <CardHeader className={`${status.color} text-white`}>
-                <CardTitle className="flex items-center gap-2">
-                  <status.icon className="h-5 w-5" />
-                  {status.label}
-                </CardTitle>
-              </CardHeader>
-            </Card>
-
-            <div className="space-y-2">
-              {filteredTasks
-                .filter((t) => t.status === status.id)
-                .map((task) => {
-                  const priorityColor = getPriorityColor(task.priority, task.calculated_priority_score);
-                  const priorityLabel = getPriorityLabel(task.priority, task.calculated_priority_score);
-                  return (
-                  <Card
-                    key={task.id}
-                    className="cursor-move hover:shadow-md transition-shadow"
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("taskId", task.id);
-                      e.dataTransfer.setData("currentStatus", task.status);
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const droppedTaskId = e.dataTransfer.getData("taskId");
-                      const currentStatus = e.dataTransfer.getData("currentStatus");
-                      
-                      if (droppedTaskId === task.id && currentStatus !== status.id) {
-                        handleDragEnd({
-                          active: { id: droppedTaskId },
-                          over: { id: status.id }
-                        });
-                      }
-                    }}
-                  >
-                    <CardContent className="pt-6">
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <GripVertical className="h-4 w-4 text-muted-foreground" />
-                              <h3 className="font-semibold">
-                                {task.title}
-                              </h3>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(task.id)}
-                            className="h-6 w-6"
-                          >
-                            ×
-                          </Button>
-                        </div>
-
-                        {task.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {task.description}
-                          </p>
-                        )}
-
-                        {task.client && (
-                          <p className="text-xs text-muted-foreground">
-                            📁 {task.client.company || task.client.name}
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge
-                            variant={priorityColor as any}
-                            className="text-xs"
-                          >
-                            {priorityLabel}
-                          </Badge>
-
-                          {task.is_blocking && (
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                              Bloquante
-                            </Badge>
-                          )}
-
-                          {task.deadline && (
-                            <Badge
-                              variant={
-                                isOverdue(task.deadline) ? "destructive" : "outline"
-                              }
-                              className="text-xs"
-                            >
-                              <Clock className="h-3 w-3 mr-1" />
-                              {format(new Date(task.deadline), "dd MMM", {
-                                locale: fr,
-                              })}
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex gap-2 mt-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenDialog(task)}
-                            className="flex-1"
-                          >
-                            Modifier
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleQuickAction(task.id, 'postpone')}
-                            className="gap-1"
-                            title="Reporter à demain"
-                          >
-                            <Clock className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleQuickAction(task.id, 'archive')}
-                            className="gap-1"
-                            title="Archiver"
-                          >
-                            <Archive className="h-3 w-3" />
-                          </Button>
-                        </div>
+      <DndContext
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-3 gap-4">
+          {statusConfig.map((status) => (
+            <StatusColumn
+              key={status.id}
+              status={status}
+              tasks={filteredTasks.filter((t) => t.status === status.id)}
+              onEdit={handleOpenDialog}
+              onDelete={handleDelete}
+              onQuickAction={handleQuickAction}
+              getPriorityColor={getPriorityColor}
+              getPriorityLabel={getPriorityLabel}
+              isOverdue={isOverdue}
+              format={format}
+            />
+          ))}
+        </div>
+        <DragOverlay>
+          {activeTaskId ? (
+            (() => {
+              const task = tasks.find(t => t.id === activeTaskId);
+              if (!task) return null;
+              return (
+                <Card className="opacity-90 rotate-2 shadow-xl">
+                  <CardContent className="pt-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="font-semibold">{task.title}</h3>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+                      {task.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {task.description}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

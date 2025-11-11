@@ -3,7 +3,7 @@
  */
 
 interface TelegramNotification {
-  type: 'deadline_rapport' | 'deadline_facture' | 'reponse_avis' | 'tache_urgente' | 'custom';
+  type: 'deadline_rapport' | 'deadline_facture' | 'reponse_avis' | 'tache_urgente' | 'rapport_gbp_manquant' | 'custom';
   clientId?: string;
   clientName?: string;
   taskId?: string;
@@ -45,6 +45,7 @@ export function formatNotificationMessage(notification: TelegramNotification): s
     deadline_facture: '💰',
     reponse_avis: '⭐',
     tache_urgente: '🚨',
+    rapport_gbp_manquant: '📊',
     custom: '🔔',
   }[notification.type] || '🔔';
 

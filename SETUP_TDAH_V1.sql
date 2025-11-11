@@ -49,6 +49,43 @@ CREATE TABLE IF NOT EXISTS public.company_settings (
 );
 
 -- ============================================================================
+-- 2.1. PRODUCTS (Catalogue produits et services)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  reference TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  price_ht DECIMAL(10,2) NOT NULL,
+  tva_rate DECIMAL(5,2) DEFAULT 20,
+  subscription_type TEXT CHECK (subscription_type IN ('mensuel', 'trimestriel', 'semestriel', 'annuel', 'ponctuel', 'installation', 'service')) DEFAULT 'mensuel',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, reference)
+);
+
+-- Ajouter la table products si elle n'existe pas déjà
+DO $$ 
+BEGIN
+  -- Ajouter les colonnes manquantes si la table existe déjà
+  IF EXISTS (SELECT 1 FROM information_schema.tables 
+             WHERE table_schema = 'public' 
+             AND table_name = 'products') THEN
+    -- Ajouter subscription_type si elle n'existe pas (avec les nouvelles valeurs)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'products' 
+                   AND column_name = 'subscription_type') THEN
+      ALTER TABLE public.products ADD COLUMN subscription_type TEXT DEFAULT 'mensuel';
+      ALTER TABLE public.products ADD CONSTRAINT products_subscription_type_check 
+        CHECK (subscription_type IN ('mensuel', 'trimestriel', 'semestriel', 'annuel', 'ponctuel', 'installation', 'service'));
+    END IF;
+  END IF;
+END $$;
+
+-- ============================================================================
 -- 3. CLIENTS (Table principale clients)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.clients (
@@ -708,6 +745,7 @@ $$ LANGUAGE plpgsql;
 -- Activer RLS sur toutes les tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.company_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
@@ -740,6 +778,27 @@ CREATE POLICY "Users can manage own company settings"
   FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- Policies pour products
+DROP POLICY IF EXISTS "Users can view their own products" ON public.products;
+CREATE POLICY "Users can view their own products"
+  ON public.products FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own products" ON public.products;
+CREATE POLICY "Users can insert their own products"
+  ON public.products FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own products" ON public.products;
+CREATE POLICY "Users can update their own products"
+  ON public.products FOR UPDATE
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own products" ON public.products;
+CREATE POLICY "Users can delete their own products"
+  ON public.products FOR DELETE
+  USING (auth.uid() = user_id);
 
 -- Policies pour clients
 DROP POLICY IF EXISTS "Users can manage own clients" ON public.clients;
@@ -809,6 +868,13 @@ CREATE POLICY "Users can manage own documents"
   FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================================
+-- INDEXES (Optimisation des requêtes)
+-- ============================================================================
+CREATE INDEX IF NOT EXISTS idx_products_user_id ON public.products(user_id);
+CREATE INDEX IF NOT EXISTS idx_products_active ON public.products(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_products_reference ON public.products(user_id, reference);
 
 -- ============================================================================
 -- GRANTS (Permissions PostgREST)

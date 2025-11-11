@@ -1,0 +1,43 @@
+table {
+  thead th:last-child,
+  tbody td:last-child{
+    text-align: end;
+  }
+}
+
+.tm_table_style_3,
+.tm_table_style_2 {
+  tbody tr:nth-child(odd){
+    background-color: $gray;
+  }
+}
+.tm_table_style_2 {
+  thead th{
+    color: $accent;
+  }
+}
+
+.tm_table_style_3 {
+  thead th{
+    color: $primary
+  }
+}
+
+.tm_table_style_4{
+  tbody tr:nth-child(even){
+    background-color: rgba(0, 122, 255, 0.1);
+  }
+}
+
+
+.tm_accent_color,
+.tm_accent_color_hover {
+  cursor: pointer;
+  &.active{
+    color: $accent;
+  }
+}
+
+.cs_cursor{
+  cursor: pointer;
+}

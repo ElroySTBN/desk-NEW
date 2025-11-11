@@ -24,7 +24,7 @@ const menuItems = [
   { title: "Onboarding", url: "/onboarding", icon: UserPlus },
   { title: "Bibliothèque", url: "/library", icon: Library },
   { title: "Facturation", url: "/invoices", icon: FileText },
-  { title: "Rapports", url: "/reports", icon: BarChart3 },
+    { title: "Rapports", url: "/reports/gbp", icon: BarChart3 },
   { title: "Paramètres", url: "/settings", icon: Settings },
 ];
 

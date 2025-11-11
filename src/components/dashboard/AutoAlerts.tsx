@@ -75,7 +75,7 @@ export const AutoAlerts = () => {
         .from("clients")
         .select("id, name, company")
         .eq("user_id", user.id)
-        .eq("status", "actif");
+        .eq("statut", "actif");
 
       const clientsWithContent = new Set(upcomingContent?.map((c) => c.clients?.id).filter(Boolean) || []);
 
@@ -100,16 +100,16 @@ export const AutoAlerts = () => {
         .select(`
           id,
           title,
-          due_date,
+          deadline,
           clients!left(id, name, company)
         `)
         .eq("user_id", user.id)
         .in("status", ["todo", "in_progress"])
-        .not("due_date", "is", null);
+        .not("deadline", "is", null);
 
       approachingTasks?.forEach((task) => {
-        if (task.due_date) {
-          const daysUntilDue = differenceInDays(new Date(task.due_date), new Date());
+        if (task.deadline) {
+          const daysUntilDue = differenceInDays(new Date(task.deadline), new Date());
           if (daysUntilDue <= 3 && daysUntilDue >= 0) {
             allAlerts.push({
               id: `task-${task.id}`,
@@ -135,7 +135,7 @@ export const AutoAlerts = () => {
         .from("onboarding")
         .select("id, status, client_name")
         .eq("user_id", user.id)
-        .eq("status", "completed");
+        .in("status", ["completed", "done", "sent"]);
 
       const clientsWithDNA = new Set(brandDNA?.map((bd) => bd.client_id) || []);
       const clientsWithCompletedOnboarding = new Set(

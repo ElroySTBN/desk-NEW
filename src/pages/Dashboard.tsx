@@ -14,7 +14,7 @@ import { getTopPriorityTasks, getPriorityColor, getPriorityLabel, type Task } fr
 interface TaskWithClient extends Task {
   category?: string;
   client?: {
-    id: string;
+  id: string;
     name: string;
     company?: string;
   };
@@ -316,16 +316,16 @@ const Dashboard = () => {
               <div className="text-center py-8">
                 <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-500" />
                 <p className="text-muted-foreground">Aucune tâche urgente ! 🎉</p>
-              </div>
-            ) : (
+            </div>
+          ) : (
               <div className="space-y-3">
                 {urgentTasks.map((task) => {
                   const CategoryIcon = getCategoryIcon(task.category || '');
                   const priorityColor = getPriorityColor(task.priority, task.calculated_priority_score);
                   const priorityLabel = getPriorityLabel(task.priority, task.calculated_priority_score);
                   
-                  return (
-                    <div
+                return (
+                  <div
                       key={task.id}
                       className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
                       onClick={() => task.client_id ? navigate(`/clients/${task.client_id}`) : navigate('/tasks')}
@@ -349,13 +349,13 @@ const Dashboard = () => {
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {formatTimeUntil(task.deadline || null)}
-                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
             {backlogTasks.length > 0 && (
               <div className="mt-4 pt-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
@@ -363,8 +363,8 @@ const Dashboard = () => {
                 </p>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
 
         {/* Accès Rapide */}
         <Card>

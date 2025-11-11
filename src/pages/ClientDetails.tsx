@@ -16,6 +16,7 @@ import { ClientDocumentsTab } from "@/components/client/ClientDocumentsTab";
 import { QuickEmailActions } from "@/components/client/QuickEmailActions";
 import { ClientBrandDNA } from "@/components/client/ClientBrandDNA";
 import { ClientHistoryTab } from "@/components/client/ClientHistoryTab";
+import { ClientGBPReportsTab } from "@/components/client/ClientGBPReportsTab";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Client = Tables<"clients">;
@@ -142,13 +143,14 @@ const ClientDetails = () => {
       </div>
 
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid w-full grid-cols-10">
+        <TabsList className="grid w-full grid-cols-11">
           <TabsTrigger value="info">Informations</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="brand-dna">Brand DNA</TabsTrigger>
           <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
           <TabsTrigger value="tasks">Tâches</TabsTrigger>
           <TabsTrigger value="kpis">KPIs</TabsTrigger>
+          <TabsTrigger value="gbp-reports">Rapports GBP</TabsTrigger>
           <TabsTrigger value="invoices">Factures</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="history">Historique</TabsTrigger>
@@ -181,6 +183,10 @@ const ClientDetails = () => {
             clientName={client.name}
             clientCompany={client.company || undefined}
           />
+        </TabsContent>
+
+        <TabsContent value="gbp-reports">
+          <ClientGBPReportsTab clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="invoices">

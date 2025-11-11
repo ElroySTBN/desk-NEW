@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -13,10 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { GenerateRecurringInvoiceDialog } from "@/components/invoices/GenerateRecurringInvoiceDialog";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface ClientInvoicesTabProps {
   clientId: string;
 }
+
+type Client = Tables<"clients">;
 
 interface Invoice {
   id: string;
@@ -30,10 +34,13 @@ interface Invoice {
 export const ClientInvoicesTab = ({ clientId }: ClientInvoicesTabProps) => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [client, setClient] = useState<Client | null>(null);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
-  }, []);
+    fetchClient();
+  }, [clientId]);
 
   const fetchInvoices = async () => {
     const { data } = await supabase
@@ -43,6 +50,16 @@ export const ClientInvoicesTab = ({ clientId }: ClientInvoicesTabProps) => {
       .order("date", { ascending: false });
 
     if (data) setInvoices(data);
+  };
+
+  const fetchClient = async () => {
+    const { data } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("id", clientId)
+      .single();
+
+    if (data) setClient(data);
   };
 
   const getStatusBadge = (status: string) => {
@@ -62,14 +79,27 @@ export const ClientInvoicesTab = ({ clientId }: ClientInvoicesTabProps) => {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Factures du client</CardTitle>
-        <Button className="gap-2" onClick={() => navigate(`/invoices`)}>
-          <Plus className="h-4 w-4" />
-          Nouvelle facture
-        </Button>
-      </CardHeader>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Factures du client</CardTitle>
+          <div className="flex gap-2">
+            {client && (
+              <Button
+                className="gap-2"
+                variant="default"
+                onClick={() => setShowGenerateDialog(true)}
+              >
+                <FileText className="h-4 w-4" />
+                Générer facture récurrente
+              </Button>
+            )}
+            <Button className="gap-2" onClick={() => navigate(`/invoices`)}>
+              <Plus className="h-4 w-4" />
+              Nouvelle facture
+            </Button>
+          </div>
+        </CardHeader>
       <CardContent>
         {invoices.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
@@ -105,5 +135,18 @@ export const ClientInvoicesTab = ({ clientId }: ClientInvoicesTabProps) => {
         )}
       </CardContent>
     </Card>
+
+    {client && (
+      <GenerateRecurringInvoiceDialog
+        open={showGenerateDialog}
+        onOpenChange={setShowGenerateDialog}
+        client={client}
+        onSuccess={() => {
+          fetchInvoices();
+          setShowGenerateDialog(false);
+        }}
+      />
+    )}
+    </>
   );
 };

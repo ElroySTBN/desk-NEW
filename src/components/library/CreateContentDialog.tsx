@@ -138,6 +138,7 @@ export const CreateContentDialog = ({ open, onOpenChange, clients, onSuccess }: 
                   <SelectItem value="promotion">Promotion</SelectItem>
                   <SelectItem value="update">Mise à jour</SelectItem>
                   <SelectItem value="photo">Photo</SelectItem>
+                  <SelectItem value="other">Autre</SelectItem>
                 </SelectContent>
               </Select>
             </div>

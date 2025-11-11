@@ -236,5 +236,68 @@ export const EMAIL_TEMPLATES = {
       </div>
     `,
   },
+  
+  GBP_REPORT: {
+    subject: "Votre rapport mensuel [MONTH] [YEAR] - [CLIENT_NAME]",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Bonjour [CLIENT_NAME],</h2>
+        <p>Nous avons le plaisir de vous transmettre votre rapport de performances Google Business Profile pour la période <strong>[MONTH] [YEAR]</strong>.</p>
+        <p>Vous trouverez en pièce jointe l'analyse détaillée de votre visibilité locale et des interactions avec votre fiche d'établissement.</p>
+        <p>Les résultats de ce mois montrent <strong>[INSIGHT]</strong>.</p>
+        <p>Restons à votre disposition pour échanger sur ces résultats et les prochaines optimisations à mettre en place.</p>
+        [SIGNATURE]
+      </div>
+    `,
+  },
 };
+
+/**
+ * Envoie un email avec le rapport GBP en pièce jointe
+ */
+export async function sendGBPReportEmail(
+  clientEmail: string,
+  pdfUrl: string,
+  reportData: {
+    clientName: string;
+    month: string;
+    year: number;
+    insight?: string;
+  },
+  clientId: string
+): Promise<{ success: boolean; messageId?: string }> {
+  try {
+    const template = EMAIL_TEMPLATES.GBP_REPORT;
+    const html = replaceEmailVariables(template.html, {
+      CLIENT_NAME: reportData.clientName,
+      MONTH: reportData.month,
+      YEAR: reportData.year.toString(),
+      INSIGHT: reportData.insight || 'une évolution positive de votre visibilité locale',
+    });
+
+    // Note: L'Edge Function send-email devra gérer les pièces jointes
+    // Pour l'instant, on envoie l'URL du PDF dans le corps de l'email
+    const htmlWithPdfLink = html.replace(
+      'en pièce jointe',
+      `en pièce jointe (<a href="${pdfUrl}" target="_blank">Télécharger le rapport</a>)`
+    );
+
+    const result = await sendEmail({
+      to: clientEmail,
+      subject: replaceEmailVariables(template.subject, {
+        CLIENT_NAME: reportData.clientName,
+        MONTH: reportData.month,
+        YEAR: reportData.year.toString(),
+      }),
+      html: htmlWithPdfLink,
+      clientId: clientId,
+      type: 'report',
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error sending GBP report email:', error);
+    throw error;
+  }
+}
 

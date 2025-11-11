@@ -23,6 +23,7 @@ import OrganizationReviewCampaign from "./pages/OrganizationReviewCampaign";
 import FunnelSetup from "./pages/FunnelSetup";
 import FunnelContentFlow from "./pages/FunnelContentFlow";
 import MonthlyReports from "./pages/MonthlyReports";
+import GBPReports from "./pages/GBPReports";
 import ScanRedirect from "./pages/ScanRedirect";
 import ReviewFunnel from "./pages/ReviewFunnel";
 import NotFound from "./pages/NotFound";
@@ -58,6 +59,7 @@ const App = () => (
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/library" element={<Library />} />
           <Route path="/reports" element={<MonthlyReports />} />
+          <Route path="/reports/gbp" element={<GBPReports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/onboarding/create" element={<CreateOnboarding />} />

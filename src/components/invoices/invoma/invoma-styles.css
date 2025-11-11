@@ -1,0 +1,269 @@
+/* Invoma Invoice Styles - Adapted from SCSS */
+/* Color Variables */
+:root {
+  --tm-white: #fff;
+  --tm-primary: #111;
+  --tm-secondary: #666;
+  --tm-ternary: #b5b5b5;
+  --tm-gray: #f5f6fa;
+  --tm-border: #dbdfea;
+  --tm-accent: #007aff;
+  --tm-red: red;
+  --tm-green: #34c759;
+}
+
+/* Invoice General Styles */
+.tm_f10 { font-size: 10px; }
+.tm_f11 { font-size: 11px; }
+.tm_f12 { font-size: 12px; }
+.tm_f13 { font-size: 13px; }
+.tm_f14 { font-size: 14px; }
+.tm_f15 { font-size: 15px; }
+.tm_f16 { font-size: 16px; }
+.tm_f17 { font-size: 17px; }
+.tm_f18 { font-size: 18px; }
+.tm_f19 { font-size: 19px; }
+.tm_f20 { font-size: 20px; }
+.tm_f21 { font-size: 21px; }
+.tm_f22 { font-size: 22px; }
+.tm_f23 { font-size: 23px; }
+.tm_f24 { font-size: 24px; }
+.tm_f25 { font-size: 25px; }
+.tm_f26 { font-size: 26px; }
+.tm_f27 { font-size: 27px; }
+.tm_f28 { font-size: 28px; }
+.tm_f29 { font-size: 29px; }
+.tm_f30 { font-size: 30px; }
+.tm_f40 { font-size: 40px; }
+.tm_f50 { font-size: 50px; }
+
+.tm_light { font-weight: 300; }
+.tm_normal { font-weight: 400; }
+.tm_medium { font-weight: 500; }
+.tm_semi_bold { font-weight: 600; }
+.tm_bold { font-weight: 700; }
+
+.tm_m0 { margin: 0px; }
+.tm_mb0 { margin-bottom: 0px; }
+.tm_mb1 { margin-bottom: 1px; }
+.tm_mb2 { margin-bottom: 2px; }
+.tm_mb3 { margin-bottom: 3px; }
+.tm_mb4 { margin-bottom: 4px; }
+.tm_mb5 { margin-bottom: 5px; }
+.tm_mb6 { margin-bottom: 6px; }
+.tm_mb7 { margin-bottom: 7px; }
+.tm_mb8 { margin-bottom: 8px; }
+.tm_mb9 { margin-bottom: 9px; }
+.tm_mb10 { margin-bottom: 10px; }
+.tm_mb11 { margin-bottom: 11px; }
+.tm_mb12 { margin-bottom: 12px; }
+.tm_mb13 { margin-bottom: 13px; }
+.tm_mb14 { margin-bottom: 14px; }
+.tm_mb15 { margin-bottom: 15px; }
+.tm_mb16 { margin-bottom: 16px; }
+.tm_mb17 { margin-bottom: 17px; }
+.tm_mb18 { margin-bottom: 18px; }
+.tm_mb19 { margin-bottom: 19px; }
+.tm_mb20 { margin-bottom: 20px; }
+.tm_mb21 { margin-bottom: 21px; }
+.tm_mb22 { margin-bottom: 22px; }
+.tm_mb23 { margin-bottom: 23px; }
+.tm_mb24 { margin-bottom: 24px; }
+.tm_mb25 { margin-bottom: 25px; }
+.tm_mb26 { margin-bottom: 26px; }
+.tm_mb27 { margin-bottom: 27px; }
+.tm_mb28 { margin-bottom: 28px; }
+.tm_mb29 { margin-bottom: 29px; }
+.tm_mb30 { margin-bottom: 30px; }
+.tm_mb40 { margin-bottom: 40px; }
+
+.tm_pt0 { padding-top: 0; }
+.tm_pt25 { padding-top: 25px; }
+
+.tm_width_1 { width: 8.33333333%; }
+.tm_width_2 { width: 16.66666667%; }
+.tm_width_3 { width: 25%; }
+.tm_width_4 { width: 33.33333333%; }
+.tm_width_5 { width: 41.66666667%; }
+.tm_width_6 { width: 50%; }
+.tm_width_7 { width: 58.33333333%; }
+.tm_width_8 { width: 66.66666667%; }
+.tm_width_9 { width: 75%; }
+.tm_width_10 { width: 83.33333333%; }
+.tm_width_11 { width: 91.66666667%; }
+.tm_width_12 { width: 100%; }
+
+.tm_border { border: 1px solid var(--tm-border); }
+.tm_border_bottom { border-bottom: 1px solid var(--tm-border); }
+.tm_border_top { border-top: 1px solid var(--tm-border); }
+.tm_border_left { border-left: 1px solid var(--tm-border); }
+.tm_border_right { border-right: 1px solid var(--tm-border); }
+.tm_round_border {
+  border: 1px solid var(--tm-border);
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.tm_primary_color { color: var(--tm-primary); }
+.tm_secondary_color { color: var(--tm-secondary); }
+.tm_ternary_color { color: var(--tm-ternary); }
+.tm_accent_color { color: var(--tm-accent); }
+.tm_white_color { color: var(--tm-white); }
+
+.tm_gray_bg { background: var(--tm-gray); }
+.tm_primary_bg { background-color: var(--tm-primary); }
+.tm_accent_bg { background-color: var(--tm-accent); }
+
+.tm_text_center { text-align: center; }
+.tm_text_uppercase { text-transform: uppercase; }
+.tm_text_right { text-align: right; }
+.tm_align_center { align-items: center; }
+
+.tm_border_none { border: none !important; }
+.tm_border_top_0 { border-top: 0; }
+.tm_border_bottom_0 { border-bottom: 0; }
+
+.tm_flex { display: flex; }
+.tm_justify_between { justify-content: space-between; }
+
+.tm_invoice {
+  background: #fff;
+  border-radius: 10px;
+  padding: 50px;
+}
+
+.tm_invoice_in {
+  position: relative;
+  z-index: 100;
+}
+
+.tm_invoice_head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tm_invoice_left {
+  flex: none;
+}
+
+.tm_invoice_right {
+  flex: none;
+}
+
+.tm_logo img {
+  max-height: 50px;
+}
+
+.tm_invoice_info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tm_invoice_seperator {
+  min-height: 18px;
+  border-radius: 1.6em;
+  flex: 1;
+  margin-right: 20px;
+  background: var(--tm-gray);
+}
+
+.tm_invoice_info_list {
+  display: flex;
+}
+
+.tm_invoice_info_list > *:not(:last-child) {
+  margin-right: 20px;
+}
+
+.tm_invoice_number,
+.tm_invoice_date {
+  margin: 0;
+}
+
+.tm_table_responsive {
+  overflow-x: auto;
+}
+
+.tm_table_responsive > table {
+  min-width: 600px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tm_table_responsive table thead th {
+  background: var(--tm-gray);
+  color: var(--tm-primary);
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.tm_table_responsive table tbody td {
+  padding: 12px 15px;
+  border-top: 1px solid var(--tm-border);
+}
+
+.tm_invoice_footer {
+  display: flex;
+  margin-top: -1px;
+}
+
+.tm_left_footer {
+  width: 58%;
+  padding: 10px 15px;
+  flex: none;
+}
+
+.tm_right_footer {
+  width: 42%;
+}
+
+.tm_invoice_footer table {
+  margin-top: -1px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tm_invoice_footer table tbody td {
+  padding: 8px 15px;
+  border: none;
+}
+
+.tm_note_list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tm_note_list li:not(:last-child) {
+  margin-bottom: 5px;
+}
+
+.tm_padd_15_20 {
+  padding: 15px 20px;
+}
+
+.tm_hide_print {
+  display: block;
+}
+
+@media print {
+  .tm_hide_print {
+    display: none !important;
+  }
+  .tm_gray_bg {
+    background-color: var(--tm-gray) !important;
+    -webkit-print-color-adjust: exact;
+  }
+  .tm_primary_bg {
+    background-color: var(--tm-primary) !important;
+    -webkit-print-color-adjust: exact;
+  }
+  .tm_accent_color {
+    color: var(--tm-accent) !important;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
