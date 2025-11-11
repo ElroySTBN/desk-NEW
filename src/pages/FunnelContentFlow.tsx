@@ -48,16 +48,8 @@ export default function FunnelContentFlow() {
       try {
         setLoading(true);
 
-        // Check if it's an organization
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('id')
-          .eq('id', clientId)
-          .single();
-
-        if (!orgError && orgData) {
-          setIsOrganization(true);
-        }
+        // In new TDAH schema, everything is a client
+        setIsOrganization(false);
 
         const { data, error } = await supabase
           .from('review_funnel_config')
@@ -148,7 +140,7 @@ export default function FunnelContentFlow() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
+          onClick={() => navigate(`/clients/${clientId}`)}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -278,7 +270,7 @@ export default function FunnelContentFlow() {
           {saving ? 'Sauvegarde...' : 'Enregistrer'}
         </Button>
         <Button
-          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
+          onClick={() => navigate(`/clients/${clientId}`)}
         >
           Terminer
         </Button>

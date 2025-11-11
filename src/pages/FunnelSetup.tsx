@@ -44,37 +44,21 @@ export default function FunnelSetup() {
       try {
         setLoading(true);
 
-        // Try to load as organization first
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('id, legal_name, commercial_name')
+        // Load as client (new TDAH schema)
+        const { data: clientDataFromDb, error: clientError } = await supabase
+          .from('clients')
+          .select('id, name, company')
           .eq('id', clientId)
           .single();
 
         let clientData: any = null;
 
-        if (!orgError && orgData) {
-          // It's an organization
-          setIsOrganization(true);
+        if (!clientError && clientDataFromDb) {
+          setIsOrganization(false);
           clientData = {
-            id: orgData.id,
-            name: orgData.commercial_name || orgData.legal_name,
+            id: clientDataFromDb.id,
+            name: clientDataFromDb.company || clientDataFromDb.name,
           };
-        } else {
-          // Try to load as client
-          const { data: clientDataFromDb, error: clientError } = await supabase
-            .from('clients')
-            .select('id, name, company')
-            .eq('id', clientId)
-            .single();
-
-          if (!clientError && clientDataFromDb) {
-            setIsOrganization(false);
-            clientData = {
-              id: clientDataFromDb.id,
-              name: clientDataFromDb.company || clientDataFromDb.name,
-            };
-          }
         }
 
         if (!clientData || !mounted) {
@@ -168,7 +152,7 @@ export default function FunnelSetup() {
 
   const handleNext = async () => {
     await handleSave();
-    navigate(isOrganization ? `/organizations/${clientId}/funnel-content` : `/clients/${clientId}/funnel-content`);
+    navigate(`/clients/${clientId}/funnel-content`);
   };
 
   if (loading) {
@@ -188,7 +172,7 @@ export default function FunnelSetup() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
+          onClick={() => navigate(`/clients/${clientId}`)}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

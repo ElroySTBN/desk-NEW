@@ -14,7 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Copy, ExternalLink, ArrowLeft, Plus, X, Info, Building2 } from "lucide-react";
 import type { OnboardingLegalInfo, OnboardingGoogleBusiness, OnboardingBrandIdentity } from "@/types/onboarding";
-import type { Organization } from "@/types/crm";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Client = Tables<"clients">;
 
 // Pas de catégories prédéfinies - tout est flexible
 
@@ -33,7 +35,7 @@ export default function CreateOnboarding() {
   const [loading, setLoading] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [generatedId, setGeneratedId] = useState("");
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organizations, setOrganizations] = useState<Client[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
 
   // Informations obligatoires
@@ -94,41 +96,40 @@ export default function CreateOnboarding() {
     }));
   };
 
-  // Fetch organizations on mount
+  // Fetch clients on mount
   useEffect(() => {
-    const fetchOrganizations = async () => {
+    const fetchClients = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
         const { data, error } = await supabase
-          .from("organizations")
-          .select("id, legal_name, commercial_name, email, phone, website")
+          .from("clients")
+          .select("id, name, company, email, phone")
           .eq("user_id", user.id)
-          .order("legal_name");
+          .order("name");
 
         if (error) throw error;
         setOrganizations(data || []);
       } catch (error) {
-        console.error("Error fetching organizations:", error);
+        console.error("Error fetching clients:", error);
       }
     };
 
-    fetchOrganizations();
+    fetchClients();
   }, []);
 
-  // Auto-fill when organization is selected
+  // Auto-fill when client is selected
   useEffect(() => {
     if (!selectedOrgId) return;
 
-    const org = organizations.find(o => o.id === selectedOrgId);
-    if (!org) return;
+    const client = organizations.find(o => o.id === selectedOrgId);
+    if (!client) return;
 
     // Pre-fill client name and contact email
-    if (org.commercial_name) setClientName(org.commercial_name);
-    if (org.email) setContactEmail(org.email);
-    if (org.phone) setTelephone(org.phone);
-    if (org.website) setSiteWeb(org.website);
+    if (client.company || client.name) setClientName(client.company || client.name || "");
+    if (client.email) setContactEmail(client.email);
+    if (client.phone) setTelephone(client.phone);
   }, [selectedOrgId, organizations]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -268,16 +269,16 @@ export default function CreateOnboarding() {
             <div className="space-y-2 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Sélectionner une organisation existante (optionnel)</Label>
+                <Label className="font-semibold">Sélectionner un client existant (optionnel)</Label>
               </div>
               <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionnez une organisation pour pré-remplir..." />
+                  <SelectValue placeholder="Sélectionnez un client pour pré-remplir..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {organizations.map((org) => (
+                  {organizations.map((org: any) => (
                     <SelectItem key={org.id} value={org.id}>
-                      {org.commercial_name || org.legal_name}
+                      {org.company || org.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -40,31 +40,15 @@ export default function ReviewFunnel() {
 
   const fetchConfig = async () => {
     try {
-      // Try organizations first
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .select('id, legal_name, commercial_name, logo_url')
+      // Load as client (new TDAH schema)
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('id, name, company, logo_url')
         .eq('id', clientId)
         .single();
 
-      if (!orgError && orgData) {
-        setClient({
-          id: orgData.id,
-          name: orgData.commercial_name || orgData.legal_name,
-          company: orgData.commercial_name || orgData.legal_name,
-          logo_url: orgData.logo_url
-        });
-      } else {
-        // Fallback to clients
-        const { data: clientData, error: clientError } = await supabase
-          .from('clients')
-          .select('id, name, company, logo_url')
-          .eq('id', clientId)
-          .single();
-
-        if (!clientError && clientData) {
-          setClient(clientData);
-        }
+      if (!clientError && clientData) {
+        setClient(clientData);
       }
 
       // Fetch funnel config

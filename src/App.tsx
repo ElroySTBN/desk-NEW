@@ -6,9 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Auth from "./pages/Auth";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
-import Organizations from "./pages/Organizations";
-import OrganizationDetails from "./pages/OrganizationDetails";
-import Contacts from "./pages/Contacts";
+import Clients from "./pages/Clients";
+import ClientDetails from "./pages/ClientDetails";
 import Tasks from "./pages/Tasks";
 import Invoices from "./pages/Invoices";
 import Library from "./pages/Library";
@@ -42,16 +41,19 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/organizations" element={<Organizations />} />
-          <Route path="/organizations/:id" element={<OrganizationDetails />} />
-          <Route path="/organizations/:id/review-campaign" element={<OrganizationReviewCampaign />} />
-          <Route path="/organizations/:id/employees" element={<ClientEmployees />} />
-          <Route path="/organizations/:id/review-settings" element={<FunnelSetup />} />
-          <Route path="/organizations/:id/scan-reports" element={<ClientScanReports />} />
-          <Route path="/organizations/:id/negative-reviews" element={<ClientNegativeReviews />} />
-          <Route path="/organizations/:id/funnel-setup" element={<FunnelSetup />} />
-          <Route path="/organizations/:id/funnel-content" element={<FunnelContentFlow />} />
-          <Route path="/contacts" element={<Contacts />} />
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/clients/:id" element={<ClientDetails />} />
+          <Route path="/clients/:id/review-campaign" element={<OrganizationReviewCampaign />} />
+          <Route path="/clients/:id/employees" element={<ClientEmployees />} />
+          <Route path="/clients/:id/review-settings" element={<FunnelSetup />} />
+          <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
+          <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
+          <Route path="/clients/:id/funnel-setup" element={<FunnelSetup />} />
+          <Route path="/clients/:id/funnel-content" element={<FunnelContentFlow />} />
+          {/* Legacy routes - redirect to clients */}
+          <Route path="/organizations" element={<Clients />} />
+          <Route path="/organizations/:id" element={<ClientDetails />} />
+          <Route path="/organizations/:id/*" element={<ClientDetails />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/library" element={<Library />} />

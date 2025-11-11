@@ -250,7 +250,7 @@ export default function ClientScanReports() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
+          onClick={() => navigate(`/clients/${clientId}`)}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />

@@ -82,23 +82,7 @@ export default function ClientEmployees() {
 
   const fetchClient = async () => {
     try {
-      // Try organizations first
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .select('legal_name, commercial_name')
-        .eq('id', clientId)
-        .single();
-
-      if (!orgError && orgData) {
-        setClient({
-          name: orgData.commercial_name || orgData.legal_name,
-          company: orgData.commercial_name || orgData.legal_name
-        });
-        setIsOrganization(true);
-        return;
-      }
-
-      // Fallback to clients
+      // Load as client (new TDAH schema)
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('name, company')
@@ -106,6 +90,7 @@ export default function ClientEmployees() {
         .single();
 
       if (!clientError && clientData) {
+        setIsOrganization(false);
         setClient(clientData);
       }
     } catch (error) {
@@ -352,7 +337,7 @@ export default function ClientEmployees() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(isOrganization ? `/organizations/${clientId}` : `/clients/${clientId}`)}
+          onClick={() => navigate(`/clients/${clientId}`)}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />
