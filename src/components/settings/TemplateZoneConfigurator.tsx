@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -53,9 +53,21 @@ export function TemplateZoneConfigurator({
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const pageZonesRef = useRef<ZoneInfo[]>([]);
+  const drawAllZonesRef = useRef<typeof drawAllZones | null>(null);
   const [scale, setScale] = useState(1);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState<string | null>(null);
+  
+  // Mettre à jour la ref des zones quand elles changent
+  useEffect(() => {
+    pageZonesRef.current = pageZones;
+  }, [pageZones]);
+  
+  // Mettre à jour la ref de drawAllZones quand elle change
+  useEffect(() => {
+    drawAllZonesRef.current = drawAllZones;
+  }, [drawAllZones]);
 
   // Générer la liste des pages disponibles
   const availablePages = templateConfig.pages.length > 0 
@@ -67,9 +79,10 @@ export function TemplateZoneConfigurator({
     ? null
     : (templateConfig.pages[selectedPage - 1] || templateConfig.pages[0] || null);
 
-  // Collecter toutes les zones pour la page sélectionnée
-  const getZonesForPage = useCallback((page: number): ZoneInfo[] => {
+  // Collecter toutes les zones pour la page sélectionnée (memoized)
+  const pageZones = useMemo((): ZoneInfo[] => {
     const zones: ZoneInfo[] = [];
+    const page = selectedPage;
 
     // Logo sur page 1 (si applicable)
     if (page === 1 && templateConfig.logo_placement) {
@@ -128,9 +141,7 @@ export function TemplateZoneConfigurator({
     }
 
     return zones;
-  }, [templateConfig]);
-
-  const pageZones = getZonesForPage(selectedPage);
+  }, [selectedPage, templateConfig]);
 
   // Fonction pour dessiner une zone
   const drawZone = useCallback((
@@ -177,12 +188,16 @@ export function TemplateZoneConfigurator({
   }, []);
 
   // Fonction pour dessiner toutes les zones sur le canvas
-  const drawZonesOnCanvas = useCallback((
+  const drawAllZones = useCallback((
     ctx: CanvasRenderingContext2D,
-    currentScale: number
+    currentScale: number,
+    zones: ZoneInfo[],
+    drawingZone: ZoneRect | null,
+    isCurrentlyDrawing: boolean,
+    zoneType: string | null
   ) => {
     // Dessiner toutes les zones de la page
-    pageZones.forEach(zoneInfo => {
+    zones.forEach(zoneInfo => {
       drawZone(
         ctx,
         zoneInfo.zone,
@@ -193,15 +208,20 @@ export function TemplateZoneConfigurator({
     });
 
     // Dessiner la zone en cours de dessin
-    if (currentZone && isDrawing && selectedZoneType) {
-      const label = selectedZoneType === 'text' || selectedZoneType === 'variable_text' 
+    if (drawingZone && isCurrentlyDrawing && zoneType) {
+      const label = zoneType === 'text' || zoneType === 'variable_text' 
         ? 'Zone texte' 
-        : selectedZoneType === 'image' || selectedZoneType === 'variable_image'
+        : zoneType === 'image' || zoneType === 'variable_image'
         ? 'Zone image'
-        : selectedZoneType;
-      drawZone(ctx, currentZone, label, getZoneColor(selectedZoneType), 1);
+        : zoneType === 'logo'
+        ? 'Logo'
+        : zoneType === 'screenshot'
+        ? 'Screenshot'
+        : zoneType;
+      drawZone(ctx, drawingZone, label, getZoneColor(zoneType), 1);
     }
-  }, [pageZones, currentZone, isDrawing, selectedZoneType, drawZone, getZoneColor]);
+  }, [drawZone, getZoneColor]);
+
 
   // Charger l'image
   useEffect(() => {
@@ -221,6 +241,8 @@ export function TemplateZoneConfigurator({
     setImageLoading(true);
     setImageError(null);
     
+    let cancelled = false;
+    
     const loadImageWithFetch = async () => {
       let objectUrl: string | null = null;
       try {
@@ -239,10 +261,17 @@ export function TemplateZoneConfigurator({
           throw new Error('PDF détecté dans le blob');
         }
         
+        if (cancelled) return;
+        
         objectUrl = URL.createObjectURL(blob);
         const img = new Image();
         
         img.onload = () => {
+          if (cancelled) {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            return;
+          }
+          
           imageRef.current = img;
           
           if (objectUrl) {
@@ -250,6 +279,8 @@ export function TemplateZoneConfigurator({
           }
           
           requestAnimationFrame(() => {
+            if (cancelled) return;
+            
             const canvas = canvasRef.current;
             if (!canvas) {
               setImageError('Canvas non disponible. Veuillez rafraîchir la page.');
@@ -271,14 +302,34 @@ export function TemplateZoneConfigurator({
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              drawZonesOnCanvas(ctx, newScale);
+              
             }
             
             setImageLoading(false);
+            
+            // Dessiner les zones après un court délai pour s'assurer que tout est prêt
+            setTimeout(() => {
+              if (cancelled) return;
+              
+              const currentCanvas = canvasRef.current;
+              const currentImg = imageRef.current;
+              const drawFn = drawAllZonesRef.current;
+              if (!currentCanvas || !currentImg || currentCanvas.width === 0 || !drawFn) return;
+              
+              const currentCtx = currentCanvas.getContext('2d');
+              if (!currentCtx) return;
+              
+              currentCtx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
+              currentCtx.drawImage(currentImg, 0, 0, currentCanvas.width, currentCanvas.height);
+              // Dessiner les zones actuelles (utiliser la ref pour éviter les dépendances)
+              drawFn(currentCtx, newScale, pageZonesRef.current, null, false, null);
+            }, 200);
           });
         };
         
         img.onerror = () => {
+          if (cancelled) return;
+          
           if (objectUrl) {
             URL.revokeObjectURL(objectUrl);
           }
@@ -288,6 +339,8 @@ export function TemplateZoneConfigurator({
         
         img.src = objectUrl;
       } catch (error: any) {
+        if (cancelled) return;
+        
         if (error.message?.includes('PDF')) {
           setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG (une image par page) et les uploader dans l\'onglet "Template".');
           setImageLoading(false);
@@ -297,8 +350,12 @@ export function TemplateZoneConfigurator({
         // Fallback
         const img = new Image();
         img.onload = () => {
+          if (cancelled) return;
+          
           imageRef.current = img;
           requestAnimationFrame(() => {
+            if (cancelled) return;
+            
             const canvas = canvasRef.current;
             if (!canvas) {
               setImageError('Canvas non disponible. Veuillez rafraîchir la page.');
@@ -320,14 +377,33 @@ export function TemplateZoneConfigurator({
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              drawZonesOnCanvas(ctx, newScale);
+              
             }
             
             setImageLoading(false);
+            
+            // Dessiner les zones après un court délai
+            setTimeout(() => {
+              if (cancelled) return;
+              
+              const currentCanvas = canvasRef.current;
+              const currentImg = imageRef.current;
+              const drawFn = drawAllZonesRef.current;
+              if (!currentCanvas || !currentImg || currentCanvas.width === 0 || !drawFn) return;
+              
+              const currentCtx = currentCanvas.getContext('2d');
+              if (!currentCtx) return;
+              
+              currentCtx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
+              currentCtx.drawImage(currentImg, 0, 0, currentCanvas.width, currentCanvas.height);
+              drawFn(currentCtx, newScale, pageZonesRef.current, null, false, null);
+            }, 200);
           });
         };
         
         img.onerror = () => {
+          if (cancelled) return;
+          
           setImageError(`Impossible de charger l'image depuis ${currentPageUrl}. Vérifiez que l'URL est accessible, que CORS est configuré et qu'il s'agit d'une image PNG ou JPG.`);
           setImageLoading(false);
         };
@@ -338,22 +414,68 @@ export function TemplateZoneConfigurator({
     };
 
     loadImageWithFetch();
-  }, [currentPageUrl, drawZonesOnCanvas]);
+    
+    // Cleanup function
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPageUrl, selectedPage]);
 
-  // Re-dessiner le canvas quand les zones changent
+  // Re-dessiner le canvas quand on dessine (pas quand les zones changent, pour éviter les boucles)
   useEffect(() => {
-    if (!imageLoading && imageRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const img = imageRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        drawZonesOnCanvas(ctx, scale);
-      }
+    if (imageLoading || !imageRef.current || !canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx || canvas.width === 0 || canvas.height === 0) return;
+    
+    // Redessiner seulement si on est en train de dessiner (currentZone change)
+    if (isDrawing && currentZone) {
+      requestAnimationFrame(() => {
+        const currentCanvas = canvasRef.current;
+        const currentImg = imageRef.current;
+        if (!currentCanvas || !currentImg || currentCanvas.width === 0) return;
+        
+        const currentCtx = currentCanvas.getContext('2d');
+        if (!currentCtx) return;
+        
+        currentCtx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
+        currentCtx.drawImage(currentImg, 0, 0, currentCanvas.width, currentCanvas.height);
+        drawAllZones(currentCtx, scale, pageZonesRef.current, currentZone, isDrawing, selectedZoneType);
+      });
     }
-  }, [imageLoading, scale, drawZonesOnCanvas, pageZones]);
+  }, [imageLoading, scale, currentZone, isDrawing, selectedZoneType, drawAllZones]);
+  
+  // Redessiner quand les zones changent (mais pas en boucle)
+  useEffect(() => {
+    if (imageLoading || !imageRef.current || !canvasRef.current || isDrawing) return;
+    
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx || canvas.width === 0 || canvas.height === 0) return;
+    
+    // Utiliser un délai pour éviter les re-renders trop fréquents
+    const timeoutId = setTimeout(() => {
+      const currentCanvas = canvasRef.current;
+      const currentImg = imageRef.current;
+      if (!currentCanvas || !currentImg || currentCanvas.width === 0 || isDrawing) return;
+      
+      const currentCtx = currentCanvas.getContext('2d');
+      if (!currentCtx) return;
+      
+      currentCtx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
+      currentCtx.drawImage(currentImg, 0, 0, currentCanvas.width, currentCanvas.height);
+      drawAllZones(currentCtx, scale, pageZonesRef.current, null, false, null);
+    }, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [imageLoading, scale, pageZones, isDrawing, drawAllZones]);
 
   // Convertir les coordonnées de la souris
   const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -379,22 +501,32 @@ export function TemplateZoneConfigurator({
 
   // Gestion du clic sur le canvas
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!selectedZoneType) return;
+    // Ne pas dessiner si on est en train de charger l'image
+    if (imageLoading || !selectedZoneType) return;
+
+    // Pour les zones texte/image génériques, vérifier qu'une variable est sélectionnée
+    if ((selectedZoneType === 'text' || selectedZoneType === 'image') && 
+        !(selectedPage >= 2 && selectedPage <= 5 && selectedZoneType === 'text' && CATEGORIES[selectedPage - 2]) &&
+        !selectedVariable) {
+      return;
+    }
 
     const pos = getMousePos(e);
     if (!pos) return;
 
+    e.preventDefault();
     setIsDrawing(true);
     setStartPos(pos);
     setCurrentZone({ x: pos.x, y: pos.y, width: 0, height: 0 });
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !startPos || !selectedZoneType) return;
+    if (!isDrawing || !startPos || !selectedZoneType || imageLoading) return;
 
     const pos = getMousePos(e);
     if (!pos) return;
 
+    e.preventDefault();
     const width = Math.abs(pos.x - startPos.x);
     const height = Math.abs(pos.y - startPos.y);
     const zoneX = Math.min(pos.x, startPos.x);
@@ -403,28 +535,36 @@ export function TemplateZoneConfigurator({
     setCurrentZone({ x: zoneX, y: zoneY, width, height });
   };
 
-  const handleCanvasMouseUp = () => {
-    if (!isDrawing || !currentZone || !selectedZoneType) return;
+  const handleCanvasMouseUp = (e?: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !selectedZoneType) {
+      setIsDrawing(false);
+      setStartPos(null);
+      setCurrentZone(null);
+      return;
+    }
 
-    if (currentZone.width > 10 && currentZone.height > 10) {
+    if (e) {
+      e.preventDefault();
+    }
+
+    if (currentZone && currentZone.width > 10 && currentZone.height > 10) {
       saveZone(currentZone);
     }
 
     setIsDrawing(false);
     setStartPos(null);
     setCurrentZone(null);
-    setSelectedZoneType(null);
+    // Ne pas réinitialiser selectedZoneType ici pour permettre de dessiner plusieurs zones du même type
   };
 
   // Sauvegarder la zone
   const saveZone = (zone: ZoneRect) => {
-    if (!selectedZoneType || !selectedVariable) {
-      // Si pas de variable sélectionnée, on ne peut pas sauvegarder
+    if (!selectedZoneType) {
       return;
     }
 
     if (selectedPage === 1 && selectedZoneType === 'logo') {
-      // Logo sur page 1
+      // Logo sur page 1 - pas besoin de variable
       onConfigChange({
         logo_placement: {
           page: 1,
@@ -434,8 +574,58 @@ export function TemplateZoneConfigurator({
           height: zone.height,
         },
       });
-    } else if (selectedZoneType === 'text' || selectedZoneType === 'image') {
-      // Zone générique (variable)
+      // Réinitialiser après sauvegarde
+      setSelectedZoneType(null);
+      return;
+    }
+
+    if (selectedPage >= 2 && selectedPage <= 5) {
+      // Zones spécifiques GBP (screenshots et textes)
+      const categoryIndex = selectedPage - 2;
+      const category = CATEGORIES[categoryIndex];
+      
+      if (category) {
+        if (selectedZoneType === 'screenshot') {
+          // Screenshot - pas besoin de variable
+          onConfigChange({
+            screenshot_placements: {
+              ...templateConfig.screenshot_placements,
+              [category.value]: {
+                page: selectedPage,
+                x: zone.x,
+                y: zone.y,
+                width: zone.width,
+                height: zone.height,
+              },
+            },
+          });
+          setSelectedZoneType(null);
+          return;
+        } else if (selectedZoneType === 'text' && !selectedVariable) {
+          // Texte pour les catégories GBP spécifiques - pas besoin de variable
+          onConfigChange({
+            text_placements: {
+              ...templateConfig.text_placements,
+              [category.value]: {
+                page: selectedPage,
+                x: zone.x,
+                y: zone.y,
+                width: zone.width,
+                height: zone.height,
+                fontSize: fontSize,
+                color: textColor,
+                align: textAlign,
+              },
+            },
+          });
+          setSelectedZoneType(null);
+          return;
+        }
+      }
+    }
+
+    // Zones génériques (text/image) - nécessitent une variable
+    if ((selectedZoneType === 'text' || selectedZoneType === 'image') && selectedVariable) {
       const variableConfig: VariableConfig = {
         page: selectedPage,
         x: zone.x,
@@ -458,43 +648,8 @@ export function TemplateZoneConfigurator({
           [variableKey]: variableConfig,
         },
       });
-    } else if (selectedPage >= 2 && selectedPage <= 5) {
-      // Zones spécifiques GBP (screenshots et textes)
-      const categoryIndex = selectedPage - 2;
-      const category = CATEGORIES[categoryIndex];
-      
-      if (category) {
-        if (selectedZoneType === 'screenshot') {
-          onConfigChange({
-            screenshot_placements: {
-              ...templateConfig.screenshot_placements,
-              [category.value]: {
-                page: selectedPage,
-                x: zone.x,
-                y: zone.y,
-                width: zone.width,
-                height: zone.height,
-              },
-            },
-          });
-        } else if (selectedZoneType === 'text') {
-          onConfigChange({
-            text_placements: {
-              ...templateConfig.text_placements,
-              [category.value]: {
-                page: selectedPage,
-                x: zone.x,
-                y: zone.y,
-                width: zone.width,
-                height: zone.height,
-                fontSize: fontSize,
-                color: textColor,
-                align: textAlign,
-              },
-            },
-          });
-        }
-      }
+      setSelectedZoneType(null);
+      setSelectedVariable('');
     }
   };
 
@@ -703,10 +858,13 @@ export function TemplateZoneConfigurator({
               </Select>
             </div>
 
-            {/* Variable (pour les zones texte/image génériques) */}
-            {(selectedZoneType === 'text' || selectedZoneType === 'image') && (
+            {/* Variable (pour les zones texte/image génériques uniquement, pas pour logo/screenshot) */}
+            {(selectedZoneType === 'text' || selectedZoneType === 'image') && 
+             !(selectedPage === 1 && selectedZoneType === 'logo') &&
+             !(selectedPage >= 2 && selectedPage <= 5 && selectedZoneType === 'screenshot') &&
+             !(selectedPage >= 2 && selectedPage <= 5 && selectedZoneType === 'text' && CATEGORIES[selectedPage - 2]) && (
               <div className="space-y-2">
-                <Label>Variable</Label>
+                <Label>Variable *</Label>
                 <Select
                   value={selectedVariable}
                   onValueChange={setSelectedVariable}
@@ -722,11 +880,14 @@ export function TemplateZoneConfigurator({
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Une variable est requise pour les zones texte/image génériques.
+                </p>
               </div>
             )}
 
-            {/* Options de texte */}
-            {(selectedZoneType === 'text' || (selectedPage >= 2 && selectedPage <= 5 && selectedZoneType === 'screenshot')) && selectedZoneType !== 'screenshot' && (
+            {/* Options de texte (pour les zones texte, pas pour les screenshots) */}
+            {selectedZoneType === 'text' && (
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Taille de police</Label>
@@ -771,8 +932,17 @@ export function TemplateZoneConfigurator({
                 <p className="text-sm text-blue-900 dark:text-blue-100">
                   <MousePointer2 className="h-4 w-4 inline mr-2" />
                   Mode édition activé: Cliquez et glissez sur l'image ci-dessous pour dessiner une zone.
-                  {!selectedVariable && (selectedZoneType === 'text' || selectedZoneType === 'image') && (
-                    <span className="block mt-1 text-xs">⚠️ Veuillez sélectionner une variable avant de dessiner.</span>
+                  {((selectedZoneType === 'text' || selectedZoneType === 'image') && 
+                    !(selectedPage >= 2 && selectedPage <= 5 && selectedZoneType === 'text' && CATEGORIES[selectedPage - 2]) &&
+                    !selectedVariable) && (
+                    <span className="block mt-1 text-xs font-semibold text-yellow-700 dark:text-yellow-300">
+                      ⚠️ Veuillez sélectionner une variable avant de dessiner.
+                    </span>
+                  )}
+                  {(selectedZoneType === 'logo' || selectedZoneType === 'screenshot') && (
+                    <span className="block mt-1 text-xs text-green-700 dark:text-green-300">
+                      ✓ Vous pouvez maintenant dessiner la zone directement.
+                    </span>
                   )}
                 </p>
               </div>
