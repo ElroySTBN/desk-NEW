@@ -52,160 +52,8 @@ export function TemplateZoneConfigurator({
     ? templateConfig.pages[0]
     : (templateConfig.pages[selectedPage - 1] || templateConfig.pages[0] || null);
 
-  // Vérifier si l'URL pointe vers un PDF
-  const isPDF = currentPageUrl?.toLowerCase().endsWith('.pdf') || currentPageUrl?.includes('.pdf') || currentPageUrl?.includes('application/pdf');
-
-  // Charger l'image et calculer l'échelle
-  useEffect(() => {
-    if (!currentPageUrl) {
-      setImageError('Aucune image pour cette page');
-      setImageLoading(false);
-      return;
-    }
-
-    // Si c'est un PDF, afficher un message d'erreur clair
-    if (isPDF) {
-      setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG et les uploader dans l\'onglet "Template".');
-      setImageLoading(false);
-      return;
-    }
-
-    setImageLoading(true);
-    setImageError(null);
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-
-    // Vérifier le type MIME avant de charger
-    fetch(currentPageUrl, { mode: 'cors', method: 'HEAD' })
-      .then(response => {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/pdf')) {
-          throw new Error('PDF détecté');
-        }
-        return fetch(currentPageUrl, { mode: 'cors' });
-      })
-      .then(response => {
-        if (!response.ok) throw new Error('Erreur de chargement');
-        return response.blob();
-      })
-      .then(blob => {
-        // Vérifier le type MIME du blob
-        if (blob.type.includes('pdf')) {
-          throw new Error('PDF détecté');
-        }
-        
-        const url = URL.createObjectURL(blob);
-        img.src = url;
-        imageRef.current = img;
-
-        img.onload = () => {
-          const canvas = canvasRef.current;
-          if (!canvas) return;
-
-          // Calculer l'échelle pour que l'image rentre dans le conteneur
-          const maxWidth = 800;
-          const maxHeight = 600;
-          const imgWidth = img.width;
-          const imgHeight = img.height;
-
-          const scaleX = maxWidth / imgWidth;
-          const scaleY = maxHeight / imgHeight;
-          const newScale = Math.min(scaleX, scaleY, 1); // Ne pas agrandir
-
-          setScale(newScale);
-
-          canvas.width = imgWidth * newScale;
-          canvas.height = imgHeight * newScale;
-
-          setImageLoading(false);
-          drawCanvas();
-        };
-
-        img.onerror = (error) => {
-          URL.revokeObjectURL(url);
-          setImageError('Erreur lors du chargement de l\'image. Vérifiez que le fichier est bien une image PNG ou JPG.');
-          setImageLoading(false);
-        };
-      })
-      .catch((error) => {
-        if (error.message === 'PDF détecté' || isPDF) {
-          setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG (une image par page) et les uploader dans l\'onglet "Template".');
-        } else {
-          setImageError(`Erreur lors du chargement: ${error.message || 'Impossible de charger l\'image. Vérifiez que le fichier est accessible et qu\'il s\'agit d\'une image PNG ou JPG.'}`);
-        }
-        setImageLoading(false);
-      });
-  }, [currentPageUrl, isPDF]);
-
-  // Dessiner le canvas
-  const drawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const img = imageRef.current;
-    if (!canvas || !img) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    // Dessiner les zones existantes selon la page
-    if (selectedPage === 1) {
-      // Page 1: Logo
-      if (templateConfig.logo_placement) {
-        drawZone(
-          ctx,
-          templateConfig.logo_placement,
-          'Logo',
-          '#10b981',
-          scale
-        );
-      }
-    } else if (selectedPage >= 2 && selectedPage <= 5) {
-      // Pages 2-5: Screenshot et texte
-      const categoryIndex = selectedPage - 2;
-      const category = CATEGORIES[categoryIndex];
-      
-      if (category) {
-        // Screenshot
-        const screenshotPlacement = templateConfig.screenshot_placements[category.value];
-        if (screenshotPlacement && screenshotPlacement.page === selectedPage) {
-          drawZone(
-            ctx,
-            screenshotPlacement,
-            'Screenshot',
-            '#3b82f6',
-            scale
-          );
-        }
-
-        // Texte
-        const textPlacement = templateConfig.text_placements[category.value];
-        if (textPlacement && textPlacement.page === selectedPage) {
-          drawZone(
-            ctx,
-            textPlacement,
-            'Texte d\'analyse',
-            '#f59e0b',
-            scale
-          );
-        }
-      }
-    }
-
-    // Dessiner la zone en cours de dessin
-    if (currentZone && isDrawing) {
-      drawZone(ctx, currentZone, editingZone || 'Zone', getZoneColor(editingZone), 1);
-    }
-  }, [templateConfig, selectedPage, currentZone, isDrawing, editingZone, scale]);
-
-  useEffect(() => {
-    drawCanvas();
-  }, [drawCanvas]);
-
-  // Fonction pour dessiner une zone
-  const drawZone = (
+  // Fonction pour dessiner une zone (définie avant d'être utilisée)
+  const drawZone = useCallback((
     ctx: CanvasRenderingContext2D,
     zone: { x: number; y: number; width: number; height: number },
     label: string,
@@ -230,10 +78,10 @@ export function TemplateZoneConfigurator({
     ctx.fillStyle = color;
     ctx.font = 'bold 14px Arial';
     ctx.fillText(label, x + 5, y + 20);
-  };
+  }, []);
 
   // Obtenir la couleur selon le type de zone
-  const getZoneColor = (type: string | null): string => {
+  const getZoneColor = useCallback((type: string | null): string => {
     switch (type) {
       case 'logo':
         return '#10b981';
@@ -248,38 +96,330 @@ export function TemplateZoneConfigurator({
       default:
         return '#6b7280';
     }
-  };
+  }, []);
+
+  // Fonction pour dessiner les zones sur le canvas (utilisée après chargement de l'image)
+  const drawZonesOnCanvas = useCallback((
+    ctx: CanvasRenderingContext2D,
+    currentScale: number
+  ) => {
+    // Dessiner les zones existantes selon la page
+    if (selectedPage === 1) {
+      // Page 1: Logo
+      if (templateConfig.logo_placement) {
+        drawZone(
+          ctx,
+          templateConfig.logo_placement,
+          'Logo',
+          '#10b981',
+          currentScale
+        );
+      }
+    } else if (selectedPage >= 2 && selectedPage <= 5) {
+      // Pages 2-5: Screenshot et texte
+      const categoryIndex = selectedPage - 2;
+      const category = CATEGORIES[categoryIndex];
+      
+      if (category) {
+        // Screenshot
+        const screenshotPlacement = templateConfig.screenshot_placements[category.value];
+        if (screenshotPlacement && screenshotPlacement.page === selectedPage) {
+          drawZone(
+            ctx,
+            screenshotPlacement,
+            'Screenshot',
+            '#3b82f6',
+            currentScale
+          );
+        }
+
+        // Texte
+        const textPlacement = templateConfig.text_placements[category.value];
+        if (textPlacement && textPlacement.page === selectedPage) {
+          drawZone(
+            ctx,
+            textPlacement,
+            'Texte d\'analyse',
+            '#f59e0b',
+            currentScale
+          );
+        }
+      }
+    }
+
+    // Dessiner la zone en cours de dessin
+    if (currentZone && isDrawing) {
+      drawZone(ctx, currentZone, editingZone || 'Zone', getZoneColor(editingZone), 1);
+    }
+  }, [templateConfig, selectedPage, currentZone, isDrawing, editingZone, drawZone, getZoneColor]);
+
+  // Charger l'image et calculer l'échelle avec gestion CORS améliorée
+  useEffect(() => {
+    if (!currentPageUrl) {
+      setImageError('Aucune image pour cette page');
+      setImageLoading(false);
+      return;
+    }
+
+    // Vérifier si l'URL pointe vers un PDF (vérification basique)
+    const urlLower = currentPageUrl.toLowerCase();
+    if (urlLower.endsWith('.pdf') || urlLower.includes('.pdf?')) {
+      setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG et les uploader dans l\'onglet "Template".');
+      setImageLoading(false);
+      return;
+    }
+
+    setImageLoading(true);
+    setImageError(null);
+    
+    // Utiliser fetch pour contourner les problèmes CORS (même pattern que OCRZoneEditor)
+    const loadImageWithFetch = async () => {
+      let objectUrl: string | null = null;
+      try {
+        console.log('Chargement de l\'image:', currentPageUrl);
+        
+        // Essayer d'abord avec fetch pour contourner CORS
+        const response = await fetch(currentPageUrl, {
+          mode: 'cors',
+          credentials: 'omit',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to load image: ${response.statusText} (${response.status})`);
+        }
+        
+        const blob = await response.blob();
+        console.log('Blob reçu:', blob.type, blob.size);
+        
+        // Vérifier le type MIME du blob
+        if (blob.type.includes('pdf') || blob.type.includes('application/pdf')) {
+          throw new Error('PDF détecté dans le blob');
+        }
+        
+        // Vérifier que c'est bien une image
+        if (!blob.type.startsWith('image/')) {
+          console.warn('Type de fichier non image:', blob.type);
+          // Ne pas bloquer si le type n'est pas détecté (certains serveurs ne renvoient pas le type correct)
+          // On essaiera quand même de charger l'image
+        }
+        
+        objectUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        
+        img.onload = () => {
+          console.log('Image chargée:', img.width, img.height);
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+          }
+          imageRef.current = img;
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            setImageError('Canvas non disponible');
+            setImageLoading(false);
+            return;
+          }
+
+          // Calculer l'échelle pour que l'image rentre dans le canvas
+          const maxWidth = 800;
+          const maxHeight = 600;
+          const scaleX = maxWidth / img.naturalWidth;
+          const scaleY = maxHeight / img.naturalHeight;
+          const newScale = Math.min(scaleX, scaleY, 1);
+
+          setScale(newScale);
+          canvas.width = img.naturalWidth * newScale;
+          canvas.height = img.naturalHeight * newScale;
+
+          // Dessiner immédiatement après avoir chargé l'image
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Dessiner les zones existantes (sans dépendre de drawZonesOnCanvas pour éviter les boucles)
+            // On va dessiner directement ici pour éviter les dépendances circulaires
+            if (selectedPage === 1) {
+              if (templateConfig.logo_placement) {
+                drawZone(ctx, templateConfig.logo_placement, 'Logo', '#10b981', newScale);
+              }
+            } else if (selectedPage >= 2 && selectedPage <= 5) {
+              const categoryIndex = selectedPage - 2;
+              const category = CATEGORIES[categoryIndex];
+              if (category) {
+                const screenshotPlacement = templateConfig.screenshot_placements[category.value];
+                if (screenshotPlacement && screenshotPlacement.page === selectedPage) {
+                  drawZone(ctx, screenshotPlacement, 'Screenshot', '#3b82f6', newScale);
+                }
+                const textPlacement = templateConfig.text_placements[category.value];
+                if (textPlacement && textPlacement.page === selectedPage) {
+                  drawZone(ctx, textPlacement, 'Texte d\'analyse', '#f59e0b', newScale);
+                }
+              }
+            }
+          }
+          
+          setImageLoading(false);
+        };
+        
+        img.onerror = (error) => {
+          console.error('Erreur lors du chargement de l\'image:', error);
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+          }
+          setImageError('Impossible de charger l\'image après téléchargement. Vérifiez que le fichier est bien une image PNG ou JPG valide.');
+          setImageLoading(false);
+        };
+        
+        img.src = objectUrl;
+      } catch (error: any) {
+        console.warn('Fetch failed, trying direct load:', error);
+        
+        // Si c'est un PDF, ne pas essayer le fallback
+        if (error.message?.includes('PDF') || error.message?.includes('pdf')) {
+          setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG (une image par page) et les uploader dans l\'onglet "Template".');
+          setImageLoading(false);
+          return;
+        }
+        
+        // Fallback : charger directement (peut échouer avec CORS)
+        const img = new Image();
+        
+        img.onload = () => {
+          console.log('Image chargée (fallback):', img.width, img.height);
+          imageRef.current = img;
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            setImageError('Canvas non disponible');
+            setImageLoading(false);
+            return;
+          }
+
+          const maxWidth = 800;
+          const maxHeight = 600;
+          const scaleX = maxWidth / img.naturalWidth;
+          const scaleY = maxHeight / img.naturalHeight;
+          const newScale = Math.min(scaleX, scaleY, 1);
+
+          setScale(newScale);
+          canvas.width = img.naturalWidth * newScale;
+          canvas.height = img.naturalHeight * newScale;
+
+          // Dessiner immédiatement après avoir chargé l'image
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Dessiner les zones existantes
+            if (selectedPage === 1) {
+              if (templateConfig.logo_placement) {
+                drawZone(ctx, templateConfig.logo_placement, 'Logo', '#10b981', newScale);
+              }
+            } else if (selectedPage >= 2 && selectedPage <= 5) {
+              const categoryIndex = selectedPage - 2;
+              const category = CATEGORIES[categoryIndex];
+              if (category) {
+                const screenshotPlacement = templateConfig.screenshot_placements[category.value];
+                if (screenshotPlacement && screenshotPlacement.page === selectedPage) {
+                  drawZone(ctx, screenshotPlacement, 'Screenshot', '#3b82f6', newScale);
+                }
+                const textPlacement = templateConfig.text_placements[category.value];
+                if (textPlacement && textPlacement.page === selectedPage) {
+                  drawZone(ctx, textPlacement, 'Texte d\'analyse', '#f59e0b', newScale);
+                }
+              }
+            }
+          }
+          
+          setImageLoading(false);
+        };
+        
+        img.onerror = (error) => {
+          console.error('Erreur de chargement de l\'image (fallback):', error);
+          setImageError(`Impossible de charger l'image depuis ${currentPageUrl}. Vérifiez que l'URL est accessible, que CORS est configuré et qu'il s'agit d'une image PNG ou JPG.`);
+          setImageLoading(false);
+        };
+        
+        img.crossOrigin = 'anonymous';
+        img.src = currentPageUrl;
+      }
+    };
+
+    loadImageWithFetch();
+    
+    // Cleanup function
+    return () => {
+      // Ne pas nettoyer imageRef ici car il est utilisé par drawCanvas
+      // L'image sera nettoyée quand l'URL change
+    };
+  }, [currentPageUrl, selectedPage, templateConfig.logo_placement, templateConfig.screenshot_placements, templateConfig.text_placements, drawZone]); // Dépendances simplifiées
+
+  // Re-dessiner le canvas quand les zones changent (sans dépendances circulaires)
+  useEffect(() => {
+    if (!imageLoading && imageRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const img = imageRef.current;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        drawZonesOnCanvas(ctx, scale);
+      }
+    }
+  }, [imageLoading, scale, drawZonesOnCanvas]);
+
+  // Convertir les coordonnées de la souris en coordonnées de l'image originale
+  const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    if (!canvas || !img) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    // Coordonnées de la souris par rapport au canvas (en pixels CSS)
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Le canvas est redimensionné pour afficher l'image à l'échelle
+    // Convertir les coordonnées CSS vers les coordonnées réelles du canvas
+    // Puis vers les coordonnées de l'image originale
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    // Coordonnées dans le canvas (en pixels réels du canvas)
+    const canvasX = mouseX * scaleX;
+    const canvasY = mouseY * scaleY;
+    
+    // Convertir vers les coordonnées de l'image originale
+    // canvas.width = img.naturalWidth * scale, donc on divise par scale
+    const imageX = canvasX / scale;
+    const imageY = canvasY / scale;
+
+    return { x: imageX, y: imageY };
+  }, [scale]);
 
   // Gestion du clic sur le canvas
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!editingZone) return;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / scale;
-    const y = (e.clientY - rect.top) / scale;
+    const pos = getMousePos(e);
+    if (!pos) return;
 
     setIsDrawing(true);
-    setStartPos({ x, y });
-    setCurrentZone({ x, y, width: 0, height: 0 });
+    setStartPos(pos);
+    setCurrentZone({ x: pos.x, y: pos.y, width: 0, height: 0 });
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !startPos || !editingZone) return;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const pos = getMousePos(e);
+    if (!pos) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / scale;
-    const y = (e.clientY - rect.top) / scale;
-
-    const width = Math.abs(x - startPos.x);
-    const height = Math.abs(y - startPos.y);
-    const zoneX = Math.min(x, startPos.x);
-    const zoneY = Math.min(y, startPos.y);
+    const width = Math.abs(pos.x - startPos.x);
+    const height = Math.abs(pos.y - startPos.y);
+    const zoneX = Math.min(pos.x, startPos.x);
+    const zoneY = Math.min(pos.y, startPos.y);
 
     setCurrentZone({ x: zoneX, y: zoneY, width, height });
   };
@@ -370,6 +510,10 @@ export function TemplateZoneConfigurator({
     );
   }
 
+  // Vérifier si c'est un PDF pour afficher un message d'erreur
+  const urlLower = currentPageUrl?.toLowerCase() || '';
+  const isPDF = urlLower.endsWith('.pdf') || urlLower.includes('.pdf?');
+  
   // Afficher un message d'erreur clair si c'est un PDF
   if (isPDF) {
     return (
