@@ -6,38 +6,15 @@ export interface GBPReportData {
     logo_url?: string;
   };
   period: {
-    startMonth: string; // "Juin"
-    endMonth: string; // "Octobre"
-    year: number;
+    month: string; // "Octobre" - mois du rapport (N)
+    year: number; // Année du rapport (N)
+    // Comparaison avec l'année précédente (N-1)
   };
   kpis: {
     vue_ensemble: {
-      current: number;
-      previous: number;
-      analysis: string;
-    };
-    appels: {
-      current: number;
-      previous: number;
-      analysis: string;
-    };
-    clics_web: {
-      current: number;
-      previous: number;
-      analysis: string;
-    };
-    itineraire: {
-      current: number;
-      previous: number;
-      analysis: string;
-    };
-  };
-  monthlyKpis?: {
-    month: string; // "Octobre"
-    vue_ensemble: {
-      current: number;
-      previous: number;
-      analysis: string;
+      current: number; // Valeur du mois N année N
+      previous: number; // Valeur du mois N année N-1
+      analysis: string; // Analyse générée automatiquement
     };
     appels: {
       current: number;

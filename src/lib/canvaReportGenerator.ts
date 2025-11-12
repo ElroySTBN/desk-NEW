@@ -1,7 +1,6 @@
 import jsPDF from 'jspdf';
 import type { GBPReportData } from '@/types/gbp-reports';
-import type { GBPTemplateConfig, VariableConfig, ScreenshotPlacement } from './gbpTemplateConfig';
-import { getVariableValue } from './gbpTemplateConfig';
+import type { GBPTemplateConfig, LogoPlacement, TextPlacement, ScreenshotPlacement } from './gbpTemplateConfig';
 import { generateAllAnalysisTexts } from './textTemplateEngine';
 
 /**
@@ -93,7 +92,7 @@ export async function generateCanvaReportPDF(
     },
   };
 
-  // Charger les images de template (une par page)
+  // Charger les images de template (une par page, 5 pages : couverture + 4 catégories)
   const templateImages: HTMLImageElement[] = [];
   for (const pageUrl of templateConfig.pages) {
     try {
@@ -108,6 +107,15 @@ export async function generateCanvaReportPDF(
   if (templateImages.length === 0) {
     throw new Error('Aucune page de template chargée');
   }
+
+  // Vérifier qu'on a exactement 5 pages
+  if (templateImages.length !== 5) {
+    throw new Error(`Le template doit avoir exactement 5 pages (actuellement ${templateImages.length})`);
+  }
+
+  // Catégories dans l'ordre des pages 2-5
+  const categories: Array<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire'> = ['vue_ensemble', 'appels', 'clics_web', 'itineraire'];
+  const categoryPages = [2, 3, 4, 5];
 
   // Pour chaque page du template
   for (let pageIndex = 0; pageIndex < templateImages.length; pageIndex++) {
@@ -158,99 +166,121 @@ export async function generateCanvaReportPDF(
     const scaleX = finalWidth / imgWidth;
     const scaleY = finalHeight / imgHeight;
 
-    // Remplir les variables (texte et images)
-    for (const [varName, varConfig] of Object.entries(templateConfig.variables)) {
-      if (varConfig.page !== pageNumber) continue;
-
-      const value = getVariableValue(varName, reportDataWithAnalysis, varConfig.type);
-      if (!value) continue;
-
-      // Convertir les coordonnées du template (pixels) vers les coordonnées PDF (mm)
-      const pdfX = x + (varConfig.x * scaleX);
-      const pdfY = y + (varConfig.y * scaleY);
-
-      if (varConfig.type === 'image') {
-        // C'est une image (logo)
-        try {
-          const image = await loadImage(value);
-          
-          // Convertir les dimensions
-          const imageWidth = varConfig.width * scaleX;
-          const imageHeight = varConfig.height * scaleY;
-
-          // Ajouter l'image
-          doc.addImage(
-            image,
-            'PNG',
-            pdfX,
-            pdfY,
-            imageWidth,
-            imageHeight
-          );
-        } catch (error) {
-          console.error(`Erreur lors du chargement de l'image ${varName}:`, error);
-        }
-      } else {
-        // C'est du texte
-        const fontSize = varConfig.fontSize || 12;
-        const color = varConfig.color || '#000000';
-        const align = varConfig.align || 'left';
-
-        // Configuration du texte
-        doc.setFontSize(fontSize);
+    // Page 1 : Placer le logo si configuré
+    if (pageNumber === 1 && templateConfig.logo_placement && reportData.client.logo_url) {
+      try {
+        const logoImg = await loadImage(reportData.client.logo_url);
+        const logo = templateConfig.logo_placement;
         
-        // Convertir la couleur hex en RGB
-        const rgb = hexToRgb(color);
-        if (rgb) {
-          doc.setTextColor(rgb.r, rgb.g, rgb.b);
-        } else {
-          doc.setTextColor(0, 0, 0);
-        }
+        // Convertir les coordonnées
+        const logoX = x + (logo.x * scaleX);
+        const logoY = y + (logo.y * scaleY);
+        const logoWidth = logo.width * scaleX;
+        const logoHeight = logo.height * scaleY;
 
-        // Pour jsPDF, on doit gérer le texte multi-lignes manuellement
-        const lines = value.split('\n');
-        let currentY = pdfY;
-        
-        for (const line of lines) {
-          if (line.trim()) {
-            const textOptions: any = {
-              align: align,
-              maxWidth: varConfig.width * scaleX,
-            };
+        // Ajouter le logo
+        doc.addImage(
+          logoImg,
+          'PNG',
+          logoX,
+          logoY,
+          logoWidth,
+          logoHeight
+        );
+      } catch (error) {
+        console.error('Erreur lors du chargement du logo:', error);
+      }
+    }
+
+    // Pages 2-5 : Placer les screenshots et textes d'analyse pour chaque catégorie
+    if (pageNumber >= 2 && pageNumber <= 5) {
+      const categoryIndex = pageNumber - 2;
+      const category = categories[categoryIndex];
+      
+      if (!category) continue;
+
+      // Placer le screenshot pour cette catégorie
+      const screenshotPlacement = templateConfig.screenshot_placements[category];
+      if (screenshotPlacement && screenshotPlacement.page === pageNumber) {
+        const screenshotUrl = reportData.screenshots[category];
+        if (screenshotUrl) {
+          try {
+            const screenshotImg = await loadImage(screenshotUrl);
             
-            doc.text(line, pdfX, currentY, textOptions);
-            currentY += fontSize * 0.35; // Espacement entre lignes
+            // Convertir les coordonnées
+            const screenshotX = x + (screenshotPlacement.x * scaleX);
+            const screenshotY = y + (screenshotPlacement.y * scaleY);
+            const screenshotWidth = screenshotPlacement.width * scaleX;
+            const screenshotHeight = screenshotPlacement.height * scaleY;
+
+            // Ajouter le screenshot
+            doc.addImage(
+              screenshotImg,
+              'PNG',
+              screenshotX,
+              screenshotY,
+              screenshotWidth,
+              screenshotHeight
+            );
+          } catch (error) {
+            console.error(`Erreur lors du chargement de la capture ${category}:`, error);
+          }
+        }
+      }
+
+      // Placer le texte d'analyse pour cette catégorie
+      const textPlacement = templateConfig.text_placements[category];
+      if (textPlacement && textPlacement.page === pageNumber) {
+        const analysisText = reportDataWithAnalysis.kpis[category].analysis;
+        if (analysisText) {
+          // Configuration du texte
+          const fontSize = textPlacement.fontSize || 12;
+          const color = textPlacement.color || '#000000';
+          const align = textPlacement.align || 'left';
+
+          doc.setFontSize(fontSize);
+          
+          // Convertir la couleur hex en RGB
+          const rgb = hexToRgb(color);
+          if (rgb) {
+            doc.setTextColor(rgb.r, rgb.g, rgb.b);
+          } else {
+            doc.setTextColor(0, 0, 0);
+          }
+
+          // Convertir les coordonnées
+          const textX = x + (textPlacement.x * scaleX);
+          const textY = y + (textPlacement.y * scaleY);
+          const textWidth = textPlacement.width * scaleX;
+          const textHeight = textPlacement.height * scaleY;
+
+          // Pour jsPDF, on doit gérer le texte multi-lignes manuellement
+          const lines = doc.splitTextToSize(analysisText, textWidth);
+          let currentY = textY;
+          
+          for (const line of lines) {
+            if (line.trim() && currentY < textY + textHeight) {
+              const textOptions: any = {
+                align: align,
+                maxWidth: textWidth,
+              };
+              
+              doc.text(line, textX, currentY, textOptions);
+              currentY += fontSize * 0.35; // Espacement entre lignes
+            }
           }
         }
       }
     }
 
-    // Ajouter les captures d'écran
-    for (const [screenshotType, placement] of Object.entries(templateConfig.screenshot_placements)) {
-      if (placement.page !== pageNumber) continue;
+    // Remplir les variables obsolètes (pour compatibilité avec anciens templates)
+    if (templateConfig.variables) {
+      for (const [varName, varConfig] of Object.entries(templateConfig.variables)) {
+        if (varConfig.page !== pageNumber) continue;
 
-      const screenshotUrl = reportData.screenshots[screenshotType as keyof typeof reportData.screenshots];
-      if (!screenshotUrl) continue;
-
-      try {
-        const screenshotImg = await loadImage(screenshotUrl);
-        
-        // Convertir les dimensions
-        const screenshotX = x + (placement.x * scaleX);
-        const screenshotY = y + (placement.y * scaleY);
-        const screenshotWidth = placement.width * scaleX;
-        const screenshotHeight = placement.height * scaleY;
-
-        doc.addImage(
-          screenshotImg,
-          'PNG',
-          screenshotX,
-          screenshotY,
-          screenshotWidth,
-          screenshotHeight
-        );
-      } catch (error) {
-        console.error(`Erreur lors du chargement de la capture ${screenshotType}:`, error);
+        // Cette logique est conservée pour compatibilité mais ne devrait plus être utilisée
+        // avec le nouveau format (logo_placement et text_placements)
+        console.warn(`Variable ${varName} utilise l'ancien format. Utilisez logo_placement et text_placements à la place.`);
       }
     }
   }

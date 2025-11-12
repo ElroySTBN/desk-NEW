@@ -38,7 +38,6 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
   
   // Données du rapport
   const [selectedClientId, setSelectedClientId] = useState<string>(clientId || '');
-  const [reportType, setReportType] = useState<'5_mois' | 'mensuel' | 'complet'>('mensuel'); // Par défaut mensuel
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [year, setYear] = useState<number>(new Date().getFullYear());
   
@@ -55,17 +54,8 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
     itineraire: null,
   });
   
-  // KPIs
+  // KPIs (comparaison N vs N-1 pour le même mois)
   const [kpis, setKpis] = useState<GBPReportData['kpis']>({
-    vue_ensemble: { current: 0, previous: 0, analysis: '' },
-    appels: { current: 0, previous: 0, analysis: '' },
-    clics_web: { current: 0, previous: 0, analysis: '' },
-    itineraire: { current: 0, previous: 0, analysis: '' },
-  });
-  
-  // Monthly KPIs (pour page 6) - utilisés uniquement pour rapport mensuel/complet
-  const [monthlyKpis, setMonthlyKpis] = useState<GBPReportData['monthlyKpis']>({
-    month: '',
     vue_ensemble: { current: 0, previous: 0, analysis: '' },
     appels: { current: 0, previous: 0, analysis: '' },
     clics_web: { current: 0, previous: 0, analysis: '' },
@@ -95,7 +85,6 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
   const handleReset = () => {
     setStep(1);
     setSelectedClientId(clientId || '');
-    setReportType('mensuel'); // Par défaut mensuel
     const currentDate = new Date();
     const previousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
     const currentMonth = MONTHS[previousMonth.getMonth()];
@@ -108,13 +97,6 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
       itineraire: null,
     });
     setKpis({
-      vue_ensemble: { current: 0, previous: 0, analysis: '' },
-      appels: { current: 0, previous: 0, analysis: '' },
-      clics_web: { current: 0, previous: 0, analysis: '' },
-      itineraire: { current: 0, previous: 0, analysis: '' },
-    });
-    setMonthlyKpis({
-      month: currentMonth,
       vue_ensemble: { current: 0, previous: 0, analysis: '' },
       appels: { current: 0, previous: 0, analysis: '' },
       clics_web: { current: 0, previous: 0, analysis: '' },
@@ -139,26 +121,8 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
       const currentMonth = MONTHS[previousMonth.getMonth()];
       setSelectedMonth(currentMonth);
       setYear(previousMonth.getFullYear());
-      // Réinitialiser monthlyKpis avec le mois sélectionné
-      setMonthlyKpis({
-        month: currentMonth,
-        vue_ensemble: { current: 0, previous: 0, analysis: '' },
-        appels: { current: 0, previous: 0, analysis: '' },
-        clics_web: { current: 0, previous: 0, analysis: '' },
-        itineraire: { current: 0, previous: 0, analysis: '' },
-      });
     }
   }, [open, clientId]);
-
-  useEffect(() => {
-    // Mettre à jour le mois dans monthlyKpis quand selectedMonth change (seulement si le modal est ouvert)
-    if (open && monthlyKpis) {
-      setMonthlyKpis(prev => ({
-        ...prev!,
-        month: selectedMonth,
-      }));
-    }
-  }, [selectedMonth, open]);
 
   const fetchClients = async () => {
     try {
@@ -297,8 +261,7 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
                 logo_url: client.logo_url,
               },
               period: {
-                startMonth: reportType === '5_mois' ? 'Juin' : selectedMonth,
-                endMonth: selectedMonth,
+                month: selectedMonth,
                 year: year,
               },
               kpis: updated,
@@ -392,8 +355,7 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
               logo_url: client.logo_url,
             },
             period: {
-              startMonth: reportType === '5_mois' ? 'Juin' : selectedMonth,
-              endMonth: selectedMonth,
+              month: selectedMonth,
               year: year,
             },
             kpis: kpis,
@@ -451,7 +413,7 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
         throw new Error('Client non trouvé');
       }
 
-      // Préparer les données du rapport
+      // Préparer les données du rapport (rapport mensuel uniquement)
       const reportData: GBPReportData = {
         client: {
           id: client.id,
@@ -460,18 +422,10 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
           logo_url: client.logo_url,
         },
         period: {
-          startMonth: reportType === '5_mois' ? 'Juin' : selectedMonth,
-          endMonth: selectedMonth,
+          month: selectedMonth,
           year: year,
         },
         kpis: kpis,
-        monthlyKpis: (reportType === 'mensuel' || reportType === 'complet') && monthlyKpis && monthlyKpis.vue_ensemble.current > 0 ? {
-          month: selectedMonth,
-          vue_ensemble: monthlyKpis.vue_ensemble,
-          appels: monthlyKpis.appels,
-          clics_web: monthlyKpis.clics_web,
-          itineraire: monthlyKpis.itineraire,
-        } : undefined,
         screenshots: {
           vue_ensemble: screenshots.vue_ensemble || '',
           appels: screenshots.appels || '',
@@ -480,10 +434,9 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
         },
       };
 
-      // Générer et sauvegarder le rapport
+      // Générer et sauvegarder le rapport (mensuel uniquement)
       const pdfUrl = await generateAndSaveGBPReport(
         reportData,
-        reportType,
         selectedMonth,
         year
       );
@@ -596,18 +549,9 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
                   </div>
                 </div>
 
-                <div>
-                  <Label>Type de rapport *</Label>
-                  <Select value={reportType} onValueChange={(value: any) => setReportType(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5_mois">Rapport sur 5 mois (Juin-{selectedMonth})</SelectItem>
-                      <SelectItem value="mensuel">Rapport mensuel uniquement ({selectedMonth})</SelectItem>
-                      <SelectItem value="complet">Les deux (génère 1 PDF de 6 pages)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                  <p><strong>Comparaison :</strong> {selectedMonth} {year} vs {selectedMonth} {year - 1}</p>
+                  <p className="text-xs text-blue-600 mt-1">Le rapport compare le mois sélectionné avec le même mois de l'année précédente.</p>
                 </div>
               </CardContent>
             </Card>
@@ -729,63 +673,6 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
               </CardContent>
             </Card>
 
-            {/* Monthly KPIs pour page 6 */}
-            {(reportType === 'mensuel' || reportType === 'complet') && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>KPIs Mensuels (Page 6)</CardTitle>
-                  <CardDescription>
-                    Comparaison {selectedMonth} {year} vs {selectedMonth} {year - 1}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <KPIForm
-                    label="Vue d'ensemble (Mensuel)"
-                    icon="📊"
-                    current={monthlyKpis?.vue_ensemble.current || 0}
-                    previous={monthlyKpis?.vue_ensemble.previous || 0}
-                    analysis={monthlyKpis?.vue_ensemble.analysis || ''}
-                    onCurrentChange={(value) => setMonthlyKpis(prev => ({ ...prev, vue_ensemble: { ...(prev?.vue_ensemble || { current: 0, previous: 0, analysis: '' }), current: value } }))}
-                    onPreviousChange={(value) => setMonthlyKpis(prev => ({ ...prev, vue_ensemble: { ...(prev?.vue_ensemble || { current: 0, previous: 0, analysis: '' }), previous: value } }))}
-                    onAnalysisChange={(value) => setMonthlyKpis(prev => ({ ...prev, vue_ensemble: { ...(prev?.vue_ensemble || { current: 0, previous: 0, analysis: '' }), analysis: value } }))}
-                    unit="interactions"
-                  />
-                  <KPIForm
-                    label="Appels (Mensuel)"
-                    icon="📞"
-                    current={monthlyKpis?.appels.current || 0}
-                    previous={monthlyKpis?.appels.previous || 0}
-                    analysis={monthlyKpis?.appels.analysis || ''}
-                    onCurrentChange={(value) => setMonthlyKpis(prev => ({ ...prev, appels: { ...(prev?.appels || { current: 0, previous: 0, analysis: '' }), current: value } }))}
-                    onPreviousChange={(value) => setMonthlyKpis(prev => ({ ...prev, appels: { ...(prev?.appels || { current: 0, previous: 0, analysis: '' }), previous: value } }))}
-                    onAnalysisChange={(value) => setMonthlyKpis(prev => ({ ...prev, appels: { ...(prev?.appels || { current: 0, previous: 0, analysis: '' }), analysis: value } }))}
-                    unit="appels"
-                  />
-                  <KPIForm
-                    label="Clics Web (Mensuel)"
-                    icon="🌐"
-                    current={monthlyKpis?.clics_web.current || 0}
-                    previous={monthlyKpis?.clics_web.previous || 0}
-                    analysis={monthlyKpis?.clics_web.analysis || ''}
-                    onCurrentChange={(value) => setMonthlyKpis(prev => ({ ...prev, clics_web: { ...(prev?.clics_web || { current: 0, previous: 0, analysis: '' }), current: value } }))}
-                    onPreviousChange={(value) => setMonthlyKpis(prev => ({ ...prev, clics_web: { ...(prev?.clics_web || { current: 0, previous: 0, analysis: '' }), previous: value } }))}
-                    onAnalysisChange={(value) => setMonthlyKpis(prev => ({ ...prev, clics_web: { ...(prev?.clics_web || { current: 0, previous: 0, analysis: '' }), analysis: value } }))}
-                    unit="clics"
-                  />
-                  <KPIForm
-                    label="Itinéraire (Mensuel)"
-                    icon="📍"
-                    current={monthlyKpis?.itineraire.current || 0}
-                    previous={monthlyKpis?.itineraire.previous || 0}
-                    analysis={monthlyKpis?.itineraire.analysis || ''}
-                    onCurrentChange={(value) => setMonthlyKpis(prev => ({ ...prev, itineraire: { ...(prev?.itineraire || { current: 0, previous: 0, analysis: '' }), current: value } }))}
-                    onPreviousChange={(value) => setMonthlyKpis(prev => ({ ...prev, itineraire: { ...(prev?.itineraire || { current: 0, previous: 0, analysis: '' }), previous: value } }))}
-                    onAnalysisChange={(value) => setMonthlyKpis(prev => ({ ...prev, itineraire: { ...(prev?.itineraire || { current: 0, previous: 0, analysis: '' }), analysis: value } }))}
-                    unit="demandes"
-                  />
-                </CardContent>
-              </Card>
-            )}
           </div>
         )}
 
@@ -799,8 +686,8 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
               <div className="p-4 border rounded-lg">
                 <h3 className="font-semibold mb-2">Résumé du rapport</h3>
                 <p><strong>Client:</strong> {selectedClient?.company || selectedClient?.name}</p>
-                <p><strong>Période:</strong> {reportType === '5_mois' ? 'Juin-' : ''}{selectedMonth} {year}</p>
-                <p><strong>Type:</strong> {reportType === '5_mois' ? '5 mois' : reportType === 'mensuel' ? 'Mensuel' : 'Complet'}</p>
+                <p><strong>Période:</strong> {selectedMonth} {year}</p>
+                <p><strong>Comparaison:</strong> {selectedMonth} {year} vs {selectedMonth} {year - 1}</p>
               </div>
 
               <div className="p-4 border rounded-lg">

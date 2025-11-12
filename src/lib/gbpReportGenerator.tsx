@@ -6,7 +6,7 @@ import { Page2_VueEnsemble } from '@/components/reports/gbp/pdf/Page2_VueEnsembl
 import { Page3_Appels } from '@/components/reports/gbp/pdf/Page3_Appels';
 import { Page4_ClicsWeb } from '@/components/reports/gbp/pdf/Page4_ClicsWeb';
 import { Page5_Itineraire } from '@/components/reports/gbp/pdf/Page5_Itineraire';
-import { Page6_Monthly } from '@/components/reports/gbp/pdf/Page6_Monthly';
+// Page6_Monthly supprimée - rapport mensuel uniquement (5 pages)
 import { generateCanvaReportPDF } from './canvaReportGenerator';
 import type { GBPTemplateConfig } from './gbpTemplateConfig';
 import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig } from './gbpTemplateConfig';
@@ -38,10 +38,12 @@ async function getCanvaTemplate(): Promise<GBPTemplateConfig | null> {
     // Migration depuis l'ancien format
     const config: GBPTemplateConfig = {
       pages: [template.template_base_url], // Utiliser l'URL comme première page
+      logo_placement: templateConfig.logo_placement,
       variables: templateConfig.variable_zones || templateConfig.variables || {},
-      screenshot_placements: templateConfig.screenshot_placements || {},
+      screenshot_placements: templateConfig.screenshot_placements || DEFAULT_TEMPLATE_CONFIG.screenshot_placements,
+      text_placements: templateConfig.text_placements || DEFAULT_TEMPLATE_CONFIG.text_placements,
       text_templates: templateConfig.text_templates || {},
-      ocr_zones: templateConfig.ocr_zones || {},
+      ocr_zones: templateConfig.ocr_zones || DEFAULT_TEMPLATE_CONFIG.ocr_zones,
     };
     
     // Valider la configuration
@@ -57,10 +59,12 @@ async function getCanvaTemplate(): Promise<GBPTemplateConfig | null> {
   // Nouveau format : utiliser directement template_config
   const config: GBPTemplateConfig = {
     pages: templateConfig.pages || (template.template_base_url ? [template.template_base_url] : []),
+    logo_placement: templateConfig.logo_placement,
     variables: templateConfig.variables || templateConfig.variable_zones || {},
-    screenshot_placements: templateConfig.screenshot_placements || {},
+    screenshot_placements: templateConfig.screenshot_placements || DEFAULT_TEMPLATE_CONFIG.screenshot_placements,
+    text_placements: templateConfig.text_placements || DEFAULT_TEMPLATE_CONFIG.text_placements,
     text_templates: templateConfig.text_templates || {},
-    ocr_zones: templateConfig.ocr_zones || {},
+    ocr_zones: templateConfig.ocr_zones || DEFAULT_TEMPLATE_CONFIG.ocr_zones,
   };
 
   // Valider la configuration
@@ -101,7 +105,7 @@ export async function generateGBPReportPDF(data: GBPReportData): Promise<Blob> {
     }
   }
 
-  // Utiliser le template par défaut (react-pdf)
+  // Utiliser le template par défaut (react-pdf) - 5 pages uniquement
   const pdfDoc = (
     <Document>
       <Page1_Cover client={data.client} />
@@ -109,7 +113,7 @@ export async function generateGBPReportPDF(data: GBPReportData): Promise<Blob> {
       <Page3_Appels data={data} />
       <Page4_ClicsWeb data={data} />
       <Page5_Itineraire data={data} />
-      {data.monthlyKpis && <Page6_Monthly data={data} />}
+      {/* Page 6 supprimée - rapport mensuel uniquement */}
     </Document>
   );
 
@@ -156,10 +160,10 @@ export async function uploadGBPReportPDF(
 
 /**
  * Génère et upload le PDF, puis enregistre le rapport dans la base de données
+ * Rapport mensuel uniquement (comparaison N vs N-1 pour le même mois)
  */
 export async function generateAndSaveGBPReport(
   reportData: GBPReportData,
-  reportType: '5_mois' | 'mensuel' | 'complet',
   mois: string,
   annee: number
 ): Promise<string> {
@@ -181,13 +185,13 @@ export async function generateAndSaveGBPReport(
     tempReportId
   );
 
-  // Maintenant insérer dans la base de données avec l'URL du PDF
+  // Maintenant insérer dans la base de données avec l'URL du PDF (type mensuel uniquement)
   const insertResult = await supabase
     .from('rapports_gbp' as any)
     .insert({
       user_id: user.id,
       client_id: reportData.client.id,
-      type: reportType,
+      type: 'mensuel', // Toujours mensuel
       mois: mois,
       annee: annee,
       pdf_url: pdfUrl, // Inclure l'URL directement
@@ -196,7 +200,6 @@ export async function generateAndSaveGBPReport(
         appels: reportData.kpis.appels,
         clics_web: reportData.kpis.clics_web,
         itineraire: reportData.kpis.itineraire,
-        monthly: reportData.monthlyKpis,
       },
       screenshots: reportData.screenshots,
       created_by: user.id,

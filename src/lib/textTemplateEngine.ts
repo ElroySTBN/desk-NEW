@@ -114,9 +114,7 @@ export function generateAnalysisText(
       : evolution.difference.toLocaleString('fr-FR'),
     percentage: evolution.percentage.toFixed(1),
     percentage_abs: Math.abs(evolution.percentage).toFixed(1),
-    period: reportData.period.startMonth === reportData.period.endMonth
-      ? `${reportData.period.endMonth} ${reportData.period.year}`
-      : `${reportData.period.startMonth}-${reportData.period.endMonth} ${reportData.period.year}`,
+    period: `${reportData.period.month} ${reportData.period.year}`,
     client_name: reportData.client.company || reportData.client.name,
   };
 
