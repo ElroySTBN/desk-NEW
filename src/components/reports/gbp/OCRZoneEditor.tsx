@@ -44,14 +44,31 @@ export function OCRZoneEditor({
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [scale, setScale] = useState(1);
 
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(true);
+
   // Charger l'image et calculer l'échelle
   useEffect(() => {
+    if (!imageUrl) {
+      setImageError('Aucune URL d\'image fournie');
+      setImageLoading(false);
+      return;
+    }
+
+    setImageLoading(true);
+    setImageError(null);
+    
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    
+    // Gérer les erreurs CORS en essayant sans crossOrigin d'abord
     img.onload = () => {
       imageRef.current = img;
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) {
+        setImageError('Canvas non disponible');
+        setImageLoading(false);
+        return;
+      }
 
       // Calculer l'échelle pour que l'image rentre dans le canvas
       const maxWidth = 800;
@@ -65,7 +82,17 @@ export function OCRZoneEditor({
       canvas.height = img.height * newScale;
 
       drawCanvas();
+      setImageLoading(false);
     };
+    
+    img.onerror = (error) => {
+      console.error('Erreur de chargement de l\'image:', error);
+      setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible et que CORS est configuré.');
+      setImageLoading(false);
+    };
+    
+    // Essayer avec crossOrigin d'abord, puis sans si ça échoue
+    img.crossOrigin = 'anonymous';
     img.src = imageUrl;
   }, [imageUrl]);
 
@@ -197,22 +224,55 @@ export function OCRZoneEditor({
     <Card>
       <CardHeader>
         <CardTitle>{screenshotLabels[screenshotType]}</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Cliquez et glissez pour définir les zones. Clic gauche = Current, Clic droit = Previous
-        </p>
+        <div className="space-y-2 mt-2">
+          <p className="text-sm font-medium text-foreground">
+            📍 Définir les zones OCR pour extraire automatiquement les métriques
+          </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+            <p className="font-semibold text-blue-900 mb-2">Comment utiliser :</p>
+            <ol className="list-decimal list-inside space-y-1 text-blue-800">
+              <li><strong>Clic gauche + glisser</strong> = Zone "Current" (valeur actuelle, en vert)</li>
+              <li><strong>Clic droit + glisser</strong> = Zone "Previous" (valeur précédente, en bleu)</li>
+              <li>Dessinez un rectangle autour du chiffre que vous voulez extraire</li>
+              <li>Vous devez définir les <strong>deux zones</strong> avant de pouvoir enregistrer</li>
+            </ol>
+            <p className="mt-2 text-blue-700">
+              💡 <strong>Astuce :</strong> Utilisez une capture d'écran de votre dashboard GBP pour voir exactement où se trouvent les chiffres
+            </p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="border rounded-lg overflow-auto max-h-[600px] flex justify-center bg-gray-50">
-          <canvas
-            ref={canvasRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onContextMenu={(e) => e.preventDefault()}
-            className="cursor-crosshair"
-          />
-        </div>
+        {imageLoading && (
+          <div className="border rounded-lg p-8 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Chargement du template...</p>
+            </div>
+          </div>
+        )}
+        {imageError && (
+          <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <p className="text-sm text-red-800 font-semibold mb-2">⚠️ Erreur de chargement</p>
+            <p className="text-sm text-red-700">{imageError}</p>
+            <p className="text-xs text-red-600 mt-2">
+              URL du template : {imageUrl?.substring(0, 100)}...
+            </p>
+          </div>
+        )}
+        {!imageLoading && !imageError && (
+          <div className="border rounded-lg overflow-auto max-h-[600px] flex justify-center bg-gray-50">
+            <canvas
+              ref={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onContextMenu={(e) => e.preventDefault()}
+              className="cursor-crosshair"
+            />
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">

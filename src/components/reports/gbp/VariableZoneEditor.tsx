@@ -58,30 +58,8 @@ export function VariableZoneEditor({
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [scale, setScale] = useState(1);
-
-  // Charger l'image et calculer l'échelle
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      imageRef.current = img;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const maxWidth = 800;
-      const maxHeight = 600;
-      const scaleX = maxWidth / img.width;
-      const scaleY = maxHeight / img.height;
-      const newScale = Math.min(scaleX, scaleY, 1);
-
-      setScale(newScale);
-      canvas.width = img.width * newScale;
-      canvas.height = img.height * newScale;
-
-      drawCanvas();
-    };
-    img.src = imageUrl;
-  }, [imageUrl]);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(true);
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -114,9 +92,59 @@ export function VariableZoneEditor({
     }
   }, [zone, scale]);
 
+  // Charger l'image et calculer l'échelle
   useEffect(() => {
-    drawCanvas();
-  }, [drawCanvas]);
+    if (!imageUrl) {
+      setImageError('Aucune URL d\'image fournie');
+      setImageLoading(false);
+      return;
+    }
+
+    setImageLoading(true);
+    setImageError(null);
+    
+    const img = new Image();
+    
+    img.onload = () => {
+      imageRef.current = img;
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        setImageError('Canvas non disponible');
+        setImageLoading(false);
+        return;
+      }
+
+      const maxWidth = 800;
+      const maxHeight = 600;
+      const scaleX = maxWidth / img.width;
+      const scaleY = maxHeight / img.height;
+      const newScale = Math.min(scaleX, scaleY, 1);
+
+      setScale(newScale);
+      canvas.width = img.width * newScale;
+      canvas.height = img.height * newScale;
+
+      // Utiliser requestAnimationFrame pour s'assurer que le canvas est prêt
+      requestAnimationFrame(() => {
+        drawCanvas();
+        setImageLoading(false);
+      });
+    };
+    
+    img.onerror = () => {
+      setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible.');
+      setImageLoading(false);
+    };
+    
+    img.crossOrigin = 'anonymous';
+    img.src = imageUrl;
+  }, [imageUrl, drawCanvas]);
+
+  useEffect(() => {
+    if (!imageLoading && !imageError) {
+      drawCanvas();
+    }
+  }, [zone, drawCanvas, imageLoading, imageError]);
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -207,21 +235,52 @@ export function VariableZoneEditor({
     <Card>
       <CardHeader>
         <CardTitle>Zone de variable - Page {pageNumber}</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Cliquez et glissez pour définir la zone sur le template
-        </p>
+        <div className="space-y-2 mt-2">
+          <p className="text-sm font-medium text-foreground">
+            📝 Définir où placer les variables (texte ou logo) sur votre template
+          </p>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm">
+            <p className="font-semibold text-purple-900 mb-2">Étapes :</p>
+            <ol className="list-decimal list-inside space-y-1 text-purple-800">
+              <li>Sélectionnez le <strong>type</strong> : Texte ou Image (Logo)</li>
+              <li>Choisissez la <strong>variable</strong> à afficher (ex: Logo du client, Nom du client, etc.)</li>
+              <li><strong>Cliquez et glissez</strong> sur le template pour dessiner la zone</li>
+              <li>Pour le texte : configurez la taille, couleur et alignement</li>
+              <li>Cliquez sur <strong>"Enregistrer la zone"</strong> pour sauvegarder</li>
+            </ol>
+            <p className="mt-2 text-purple-700">
+              💡 <strong>Exemple :</strong> Pour le logo en haut à droite, sélectionnez "Image (Logo)" → "Logo du client" → dessinez la zone en haut à droite
+            </p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="border rounded-lg overflow-auto max-h-[600px] flex justify-center bg-gray-50">
-          <canvas
-            ref={canvasRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            className="cursor-crosshair"
-          />
-        </div>
+        {imageLoading && (
+          <div className="border rounded-lg p-8 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Chargement du template...</p>
+            </div>
+          </div>
+        )}
+        {imageError && (
+          <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <p className="text-sm text-red-800 font-semibold mb-2">⚠️ Erreur de chargement</p>
+            <p className="text-sm text-red-700">{imageError}</p>
+          </div>
+        )}
+        {!imageLoading && !imageError && (
+          <div className="border rounded-lg overflow-auto max-h-[600px] flex justify-center bg-gray-50">
+            <canvas
+              ref={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              className="cursor-crosshair"
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>

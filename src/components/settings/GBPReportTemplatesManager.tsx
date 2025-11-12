@@ -560,18 +560,35 @@ export function GBPReportTemplatesManager() {
             </TabsContent>
 
             <TabsContent value="variables" className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <p className="text-sm font-semibold text-green-900 mb-2">
+                  📝 Zones Variables : Où placer les éléments dynamiques sur votre template
+                </p>
+                <div className="text-sm text-green-800 space-y-1">
+                  <p>
+                    Les <strong>zones variables</strong> définissent où placer les éléments qui changent d'un client à l'autre sur votre <strong>template de rapport Canva</strong>.
+                  </p>
+                  <p className="mt-2">
+                    <strong>Exemples :</strong> Logo du client (page de garde), Nom du client, Métriques KPI, etc.
+                  </p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Page</Label>
+                  <Label>Page du template</Label>
                   <Select
                     value={selectedPage.toString()}
-                    onValueChange={(value) => setSelectedPage(parseInt(value))}
+                    onValueChange={(value) => {
+                      setSelectedPage(parseInt(value));
+                      setSelectedVariableZone(null); // Réinitialiser la sélection quand on change de page
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">Page 1</SelectItem>
+                      <SelectItem value="1">Page 1 (Page de garde)</SelectItem>
                       <SelectItem value="2">Page 2</SelectItem>
                       <SelectItem value="3">Page 3</SelectItem>
                       <SelectItem value="4">Page 4</SelectItem>
@@ -579,18 +596,21 @@ export function GBPReportTemplatesManager() {
                       <SelectItem value="6">Page 6</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sélectionnez la page sur laquelle vous voulez définir une zone
+                  </p>
                 </div>
                 <div>
-                  <Label>Zone existante</Label>
+                  <Label>Zone existante à modifier</Label>
                   <Select
-                    value={selectedVariableZone || ''}
-                    onValueChange={(value) => setSelectedVariableZone(value || null)}
+                    value={selectedVariableZone || '__new__'}
+                    onValueChange={(value) => setSelectedVariableZone(value === '__new__' ? null : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Nouvelle zone..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nouvelle zone...</SelectItem>
+                      <SelectItem value="__new__">➕ Créer une nouvelle zone</SelectItem>
                       {Object.entries(variableZones)
                         .filter(([_, zone]) => zone.page === selectedPage)
                         .map(([varName, zone]) => (
@@ -600,6 +620,9 @@ export function GBPReportTemplatesManager() {
                         ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Modifiez une zone existante ou créez-en une nouvelle
+                  </p>
                 </div>
               </div>
 
@@ -653,6 +676,23 @@ export function GBPReportTemplatesManager() {
             </TabsContent>
 
             <TabsContent value="ocr" className="space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                <p className="text-sm font-semibold text-amber-900 mb-2">
+                  ⚠️ Important : Zones OCR vs Zones Variables
+                </p>
+                <div className="text-sm text-amber-800 space-y-1">
+                  <p>
+                    <strong>Zones OCR</strong> : Définissez où se trouvent les chiffres sur vos <strong>captures d'écran du dashboard Google Business Profile</strong>.
+                  </p>
+                  <p>
+                    <strong>Zones Variables</strong> : Définissez où placer les textes/logos sur votre <strong>template de rapport Canva</strong>.
+                  </p>
+                  <p className="mt-2 font-medium">
+                    💡 Pour configurer les zones OCR, utilisez une capture d'écran d'exemple de votre dashboard GBP (pas le template du rapport).
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <Label>Sélectionner le type de capture d'écran</Label>
                 <Select
@@ -669,20 +709,44 @@ export function GBPReportTemplatesManager() {
                     <SelectItem value="itineraire">Demandes d'itinéraire</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sélectionnez le type de métrique pour lequel vous voulez définir les zones OCR
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm font-semibold text-blue-900 mb-2">
+                  📸 Comment configurer les zones OCR :
+                </p>
+                <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1">
+                  <li>Prenez une capture d'écran de votre dashboard Google Business Profile</li>
+                  <li>Uploadez-la temporairement (ou utilisez le template comme référence visuelle)</li>
+                  <li>Dessinez deux rectangles : un pour la valeur "Current" (actuelle) et un pour "Previous" (année précédente)</li>
+                  <li>Ces zones seront utilisées pour extraire automatiquement les chiffres des futures captures d'écran</li>
+                </ol>
               </div>
 
               {editingTemplate && editingTemplate.template_base_url ? (
-                <OCRZoneEditor
-                  imageUrl={editingTemplate.template_base_url}
-                  screenshotType={selectedScreenshotType}
-                  initialZones={ocrZones[selectedScreenshotType]}
-                  onSave={handleSaveOCRZones}
-                />
+                <div className="space-y-2">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
+                    <strong>Note :</strong> Vous utilisez actuellement le template du rapport comme référence. 
+                    Pour une meilleure précision, utilisez une vraie capture d'écran du dashboard GBP.
+                  </div>
+                  <OCRZoneEditor
+                    imageUrl={editingTemplate.template_base_url}
+                    screenshotType={selectedScreenshotType}
+                    initialZones={ocrZones[selectedScreenshotType]}
+                    onSave={handleSaveOCRZones}
+                  />
+                </div>
               ) : (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Veuillez d'abord uploader un template pour configurer les zones OCR</p>
+                    <p className="mb-2">Pour configurer les zones OCR, vous avez besoin d'une image de référence</p>
+                    <p className="text-xs">
+                      Utilisez une capture d'écran de votre dashboard GBP ou uploadez d'abord un template
+                    </p>
                   </CardContent>
                 </Card>
               )}
