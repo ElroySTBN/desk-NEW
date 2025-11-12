@@ -1,4 +1,5 @@
 -- Migration pour créer le système de templates configurable pour les rapports GBP
+-- Cette migration vérifie et crée la table si elle n'existe pas
 -- Date: 2025-01-04
 
 -- Table pour stocker les templates de rapports GBP
@@ -59,6 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_gbp_report_templates_user_id ON public.gbp_report
 CREATE INDEX IF NOT EXISTS idx_gbp_report_templates_is_default ON public.gbp_report_templates(user_id, is_default) WHERE is_default = TRUE;
 
 -- Trigger pour updated_at
+DROP TRIGGER IF EXISTS gbp_report_templates_updated_at ON public.gbp_report_templates;
 CREATE TRIGGER gbp_report_templates_updated_at
   BEFORE UPDATE ON public.gbp_report_templates
   FOR EACH ROW
@@ -67,6 +69,13 @@ CREATE TRIGGER gbp_report_templates_updated_at
 -- RLS Policies
 ALTER TABLE public.gbp_report_templates ENABLE ROW LEVEL SECURITY;
 
+-- Supprimer les anciennes politiques si elles existent
+DROP POLICY IF EXISTS "Users can view their own GBP report templates" ON public.gbp_report_templates;
+DROP POLICY IF EXISTS "Users can insert their own GBP report templates" ON public.gbp_report_templates;
+DROP POLICY IF EXISTS "Users can update their own GBP report templates" ON public.gbp_report_templates;
+DROP POLICY IF EXISTS "Users can delete their own GBP report templates" ON public.gbp_report_templates;
+
+-- Créer les politiques RLS
 CREATE POLICY "Users can view their own GBP report templates"
   ON public.gbp_report_templates
   FOR SELECT
