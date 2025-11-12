@@ -52,10 +52,20 @@ export function TemplateZoneConfigurator({
     ? templateConfig.pages[0]
     : (templateConfig.pages[selectedPage - 1] || templateConfig.pages[0] || null);
 
+  // Vérifier si l'URL pointe vers un PDF
+  const isPDF = currentPageUrl?.toLowerCase().endsWith('.pdf') || currentPageUrl?.includes('.pdf') || currentPageUrl?.includes('application/pdf');
+
   // Charger l'image et calculer l'échelle
   useEffect(() => {
     if (!currentPageUrl) {
       setImageError('Aucune image pour cette page');
+      setImageLoading(false);
+      return;
+    }
+
+    // Si c'est un PDF, afficher un message d'erreur clair
+    if (isPDF) {
+      setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG et les uploader dans l\'onglet "Template".');
       setImageLoading(false);
       return;
     }
@@ -66,13 +76,25 @@ export function TemplateZoneConfigurator({
     const img = new Image();
     img.crossOrigin = 'anonymous';
 
-    // Essayer d'abord avec fetch pour gérer CORS
-    fetch(currentPageUrl, { mode: 'cors' })
+    // Vérifier le type MIME avant de charger
+    fetch(currentPageUrl, { mode: 'cors', method: 'HEAD' })
+      .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/pdf')) {
+          throw new Error('PDF détecté');
+        }
+        return fetch(currentPageUrl, { mode: 'cors' });
+      })
       .then(response => {
         if (!response.ok) throw new Error('Erreur de chargement');
         return response.blob();
       })
       .then(blob => {
+        // Vérifier le type MIME du blob
+        if (blob.type.includes('pdf')) {
+          throw new Error('PDF détecté');
+        }
+        
         const url = URL.createObjectURL(blob);
         img.src = url;
         imageRef.current = img;
@@ -100,58 +122,21 @@ export function TemplateZoneConfigurator({
           drawCanvas();
         };
 
-        img.onerror = () => {
-          // Fallback: charger directement
-          img.src = currentPageUrl;
-          img.onload = () => {
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-
-            const maxWidth = 800;
-            const maxHeight = 600;
-            const imgWidth = img.width;
-            const imgHeight = img.height;
-
-            const scaleX = maxWidth / imgWidth;
-            const scaleY = maxHeight / imgHeight;
-            const newScale = Math.min(scaleX, scaleY, 1);
-
-            setScale(newScale);
-
-            canvas.width = imgWidth * newScale;
-            canvas.height = imgHeight * newScale;
-
-            setImageLoading(false);
-            drawCanvas();
-          };
+        img.onerror = (error) => {
+          URL.revokeObjectURL(url);
+          setImageError('Erreur lors du chargement de l\'image. Vérifiez que le fichier est bien une image PNG ou JPG.');
+          setImageLoading(false);
         };
       })
-      .catch(() => {
-        // Fallback: charger directement
-        img.src = currentPageUrl;
-        img.onload = () => {
-          const canvas = canvasRef.current;
-          if (!canvas) return;
-
-          const maxWidth = 800;
-          const maxHeight = 600;
-          const imgWidth = img.width;
-          const imgHeight = img.height;
-
-          const scaleX = maxWidth / imgWidth;
-          const scaleY = maxHeight / imgHeight;
-          const newScale = Math.min(scaleX, scaleY, 1);
-
-          setScale(newScale);
-
-          canvas.width = imgWidth * newScale;
-          canvas.height = imgHeight * newScale;
-
-          setImageLoading(false);
-          drawCanvas();
-        };
+      .catch((error) => {
+        if (error.message === 'PDF détecté' || isPDF) {
+          setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG (une image par page) et les uploader dans l\'onglet "Template".');
+        } else {
+          setImageError(`Erreur lors du chargement: ${error.message || 'Impossible de charger l\'image. Vérifiez que le fichier est accessible et qu\'il s\'agit d\'une image PNG ou JPG.'}`);
+        }
+        setImageLoading(false);
       });
-  }, [currentPageUrl]);
+  }, [currentPageUrl, isPDF]);
 
   // Dessiner le canvas
   const drawCanvas = useCallback(() => {
@@ -385,6 +370,35 @@ export function TemplateZoneConfigurator({
     );
   }
 
+  // Afficher un message d'erreur clair si c'est un PDF
+  if (isPDF) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center space-y-4">
+          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+              ⚠️ Format PDF détecté
+            </p>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-4">
+              Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones visuellement.
+            </p>
+            <div className="text-left space-y-2 text-sm text-yellow-800 dark:text-yellow-200">
+              <p className="font-semibold">Pour configurer les zones, vous devez :</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Exporter votre template Canva en images PNG ou JPG (une image par page)</li>
+                <li>Dans Canva : Menu → Télécharger → Format PNG ou JPG</li>
+                <li>Pour chaque page (5 pages au total) : exporter séparément</li>
+                <li>Revenir dans l'onglet "Template" et uploader les 5 images</li>
+              </ol>
+              <p className="mt-4 font-semibold">Note :</p>
+              <p>Vous pouvez toujours utiliser le PDF pour la génération du rapport final. Les images PNG/JPG sont uniquement nécessaires pour configurer visuellement les zones.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -473,11 +487,19 @@ export function TemplateZoneConfigurator({
           {/* Canvas pour dessiner les zones */}
           {imageLoading ? (
             <div className="flex items-center justify-center h-96 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              <div className="text-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                <p className="text-sm text-muted-foreground">Chargement de l'image...</p>
+              </div>
             </div>
           ) : imageError ? (
-            <div className="p-8 text-center text-red-500">
-              <p>{imageError}</p>
+            <div className="p-8 text-center">
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-2">
+                  ⚠️ Erreur de chargement
+                </p>
+                <p className="text-sm text-red-800 dark:text-red-200">{imageError}</p>
+              </div>
             </div>
           ) : (
             <div className="border rounded-lg overflow-auto max-h-[600px] bg-gray-50 dark:bg-gray-900">

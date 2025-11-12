@@ -108,10 +108,23 @@ export function GBPTemplateUploader({ template, onTemplateUpdated }: GBPTemplate
       }
 
       setTemplateUrl(publicUrl);
-      toast({
-        title: '✅ Template uploadé',
-        description: 'Le template a été uploadé avec succès. Allez dans l\'onglet "Zones" pour configurer les placements (logo, screenshots, textes).',
-      });
+      
+      // Vérifier si c'est un PDF
+      const isPDF = file.type === 'application/pdf' || publicUrl.toLowerCase().endsWith('.pdf');
+      
+      if (isPDF) {
+        toast({
+          title: '✅ Template PDF uploadé',
+          description: 'Le template PDF a été uploadé. Pour configurer les zones, vous devez exporter votre template Canva en images PNG ou JPG (une image par page) et les uploader. Allez dans l\'onglet "Zones" pour plus d\'informations.',
+          variant: 'default',
+        });
+      } else {
+        toast({
+          title: '✅ Template uploadé',
+          description: 'Le template a été uploadé avec succès. Allez dans l\'onglet "Zones" pour configurer les placements (logo, screenshots, textes).',
+        });
+      }
+      
       onTemplateUpdated();
     } catch (error: any) {
       toast({
@@ -206,7 +219,7 @@ export function GBPTemplateUploader({ template, onTemplateUpdated }: GBPTemplate
       <CardHeader>
         <CardTitle>Template de Base</CardTitle>
         <CardDescription>
-          Uploadez votre template personnalisé (PDF ou image). Après l'upload, allez dans l'onglet "Zones" pour configurer visuellement où placer le logo, les screenshots et les textes.
+          Uploadez votre template personnalisé. Pour configurer les zones, utilisez des images PNG ou JPG (une image par page). Le PDF peut être utilisé pour la génération du rapport, mais les images sont nécessaires pour la configuration visuelle des zones.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -261,6 +274,14 @@ export function GBPTemplateUploader({ template, onTemplateUpdated }: GBPTemplate
             <p className="text-sm text-muted-foreground mt-2">
               Formats acceptés: PDF, PNG, JPG
             </p>
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-left">
+              <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                💡 Astuce pour configurer les zones :
+              </p>
+              <p className="text-xs text-blue-800 dark:text-blue-200">
+                Pour configurer visuellement les zones (logo, screenshots, textes), exportez votre template Canva en images PNG ou JPG (une image par page). Le PDF peut toujours être utilisé pour la génération du rapport final.
+              </p>
+            </div>
           </div>
         )}
       </CardContent>
