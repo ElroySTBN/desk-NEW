@@ -187,6 +187,50 @@ export function getVariableValue(
 }
 
 /**
+ * Nettoie une configuration de template en supprimant les objets partiellement définis
+ */
+export function cleanTemplateConfig(config: Partial<GBPTemplateConfig>): GBPTemplateConfig {
+  const cleaned: GBPTemplateConfig = {
+    pages: config.pages || [],
+    variables: {},
+    screenshot_placements: {},
+    text_templates: config.text_templates || {},
+    ocr_zones: config.ocr_zones || {},
+  };
+
+  // Nettoyer les variables : ne garder que celles qui sont complètement configurées
+  if (config.variables) {
+    for (const [varName, varConfig] of Object.entries(config.variables)) {
+      if (varConfig && 
+          varConfig.page !== undefined &&
+          varConfig.x !== undefined &&
+          varConfig.y !== undefined &&
+          varConfig.width !== undefined &&
+          varConfig.height !== undefined &&
+          varConfig.type !== undefined) {
+        cleaned.variables[varName] = varConfig;
+      }
+    }
+  }
+
+  // Nettoyer les placements de screenshots : ne garder que ceux qui sont complètement configurés
+  if (config.screenshot_placements) {
+    for (const [screenshotType, placement] of Object.entries(config.screenshot_placements)) {
+      if (placement &&
+          placement.page !== undefined &&
+          placement.x !== undefined &&
+          placement.y !== undefined &&
+          placement.width !== undefined &&
+          placement.height !== undefined) {
+        cleaned.screenshot_placements[screenshotType] = placement;
+      }
+    }
+  }
+
+  return cleaned;
+}
+
+/**
  * Valide une configuration de template
  */
 export function validateTemplateConfig(config: Partial<GBPTemplateConfig>): {
@@ -195,38 +239,39 @@ export function validateTemplateConfig(config: Partial<GBPTemplateConfig>): {
 } {
   const errors: string[] = [];
   
-  if (!config.pages || config.pages.length === 0) {
+  // Nettoyer la configuration avant validation
+  const cleanedConfig = cleanTemplateConfig(config);
+  
+  if (!cleanedConfig.pages || cleanedConfig.pages.length === 0) {
     errors.push('Au moins une page de template est requise');
   }
   
-  if (config.variables) {
-    for (const [varName, varConfig] of Object.entries(config.variables)) {
-      if (!varConfig.page || varConfig.page < 1) {
-        errors.push(`Variable ${varName}: numéro de page invalide`);
-      }
-      if (varConfig.x === undefined || varConfig.y === undefined) {
-        errors.push(`Variable ${varName}: coordonnées x et y requises`);
-      }
-      if (varConfig.width === undefined || varConfig.height === undefined) {
-        errors.push(`Variable ${varName}: largeur et hauteur requises`);
-      }
-      if (!varConfig.type || !['text', 'image'].includes(varConfig.type)) {
-        errors.push(`Variable ${varName}: type invalide (doit être 'text' ou 'image')`);
-      }
+  // Valider les variables (qui ont déjà été nettoyées)
+  for (const [varName, varConfig] of Object.entries(cleanedConfig.variables)) {
+    if (!varConfig.page || varConfig.page < 1) {
+      errors.push(`Variable ${varName}: numéro de page invalide`);
+    }
+    if (typeof varConfig.x !== 'number' || typeof varConfig.y !== 'number') {
+      errors.push(`Variable ${varName}: coordonnées x et y doivent être des nombres`);
+    }
+    if (typeof varConfig.width !== 'number' || typeof varConfig.height !== 'number' || varConfig.width <= 0 || varConfig.height <= 0) {
+      errors.push(`Variable ${varName}: largeur et hauteur doivent être des nombres positifs`);
+    }
+    if (!varConfig.type || !['text', 'image'].includes(varConfig.type)) {
+      errors.push(`Variable ${varName}: type invalide (doit être 'text' ou 'image')`);
     }
   }
   
-  if (config.screenshot_placements) {
-    for (const [screenshotType, placement] of Object.entries(config.screenshot_placements)) {
-      if (!placement.page || placement.page < 1) {
-        errors.push(`Screenshot ${screenshotType}: numéro de page invalide`);
-      }
-      if (placement.x === undefined || placement.y === undefined) {
-        errors.push(`Screenshot ${screenshotType}: coordonnées x et y requises`);
-      }
-      if (placement.width === undefined || placement.height === undefined) {
-        errors.push(`Screenshot ${screenshotType}: largeur et hauteur requises`);
-      }
+  // Valider les placements de screenshots (qui ont déjà été nettoyés)
+  for (const [screenshotType, placement] of Object.entries(cleanedConfig.screenshot_placements)) {
+    if (!placement.page || placement.page < 1) {
+      errors.push(`Screenshot ${screenshotType}: numéro de page invalide`);
+    }
+    if (typeof placement.x !== 'number' || typeof placement.y !== 'number') {
+      errors.push(`Screenshot ${screenshotType}: coordonnées x et y doivent être des nombres`);
+    }
+    if (typeof placement.width !== 'number' || typeof placement.height !== 'number' || placement.width <= 0 || placement.height <= 0) {
+      errors.push(`Screenshot ${screenshotType}: largeur et hauteur doivent être des nombres positifs`);
     }
   }
   

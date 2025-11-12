@@ -12,7 +12,7 @@ import { GBPTemplateUploader } from './GBPTemplateUploader';
 import { TextTemplateEditor } from './TextTemplateEditor';
 import { DEFAULT_OCR_ZONES } from '@/lib/kpiExtractor';
 import type { GBPTemplateConfig } from '@/lib/gbpTemplateConfig';
-import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig } from '@/lib/gbpTemplateConfig';
+import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig, cleanTemplateConfig } from '@/lib/gbpTemplateConfig';
 import {
   Dialog,
   DialogContent,
@@ -170,8 +170,9 @@ export function GBPReportTemplatesManager() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Valider la configuration
-      const validation = validateTemplateConfig(templateConfig);
+      // Nettoyer et valider la configuration
+      const cleanedConfig = cleanTemplateConfig(templateConfig);
+      const validation = validateTemplateConfig(cleanedConfig);
       if (!validation.valid) {
         toast({
           title: 'Configuration invalide',
@@ -183,7 +184,7 @@ export function GBPReportTemplatesManager() {
 
       const { error } = await supabase
         .from('gbp_report_templates' as any)
-        .update({ template_config: templateConfig })
+        .update({ template_config: cleanedConfig })
         .eq('id', editingTemplate.id);
 
       if (error) throw error;
@@ -225,14 +226,17 @@ export function GBPReportTemplatesManager() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
+        // Nettoyer la configuration avant de sauvegarder
+        const cleanedConfig = cleanTemplateConfig(updatedConfig);
+
         const { error } = await supabase
           .from('gbp_report_templates' as any)
-          .update({ template_config: updatedConfig })
+          .update({ template_config: cleanedConfig })
           .eq('id', editingTemplate.id);
 
         if (error) throw error;
 
-        setTemplateConfig(updatedConfig);
+        setTemplateConfig(cleanedConfig);
         toast({
           title: '✅ Templates de textes sauvegardés',
           description: 'Les templates de textes ont été enregistrés avec succès',
@@ -264,8 +268,9 @@ export function GBPReportTemplatesManager() {
             .neq('id', editingTemplate.id);
         }
 
-        // Valider la configuration avant de sauvegarder
-        const validation = validateTemplateConfig(templateConfig);
+        // Nettoyer et valider la configuration avant de sauvegarder
+        const cleanedConfig = cleanTemplateConfig(templateConfig);
+        const validation = validateTemplateConfig(cleanedConfig);
         if (!validation.valid) {
           toast({
             title: 'Configuration invalide',
@@ -281,7 +286,7 @@ export function GBPReportTemplatesManager() {
             name: formData.name,
             description: formData.description,
             is_default: formData.is_default,
-            template_config: templateConfig,
+            template_config: cleanedConfig,
           })
           .eq('id', editingTemplate.id);
 
