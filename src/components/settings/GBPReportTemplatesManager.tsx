@@ -501,15 +501,14 @@ export function GBPReportTemplatesManager() {
             </TabsContent>
           </Tabs>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-                Annuler
-              </Button>
-              <Button onClick={handleSave} disabled={!formData.name}>
-                <Save className="h-4 w-4 mr-2" />
-                Enregistrer
-              </Button>
-            </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSave} disabled={!formData.name}>
+              <Save className="h-4 w-4 mr-2" />
+              Enregistrer
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
