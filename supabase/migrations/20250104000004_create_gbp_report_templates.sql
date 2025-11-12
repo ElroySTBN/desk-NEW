@@ -14,12 +14,18 @@ CREATE TABLE IF NOT EXISTS public.gbp_report_templates (
   -- Template par défaut
   is_default BOOLEAN DEFAULT FALSE,
   
+  -- URL du template de base (PDF ou image uploadé dans Supabase Storage)
+  template_base_url TEXT,
+  
   -- Structure du template (JSONB)
   -- Contient la configuration de placement des éléments :
   -- - pages: array de pages avec leurs éléments
+  -- - variable_zones: zones définies sur le template avec position, taille, variable associée
+  --   Ex: [{ "id": "client_name", "x": 100, "y": 50, "width": 200, "height": 30, "variable": "client.name" }]
   -- - kpi_placements: où placer chaque KPI
   -- - screenshot_placements: où placer chaque screenshot
   -- - text_sections: sections de texte avec variables
+  -- - fixed_content: contenu fixe qui ne change pas entre clients
   template_config JSONB NOT NULL DEFAULT '{}'::jsonb,
   
   -- Exemple de structure template_config:

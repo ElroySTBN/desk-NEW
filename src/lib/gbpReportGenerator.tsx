@@ -84,10 +84,20 @@ export async function generateAndSaveGBPReport(
     throw new Error('User not authenticated');
   }
 
-  // Générer le PDF
+  // Générer le PDF d'abord
   const pdfBlob = await generateGBPReportPDF(reportData);
 
-  // Créer l'enregistrement dans la base de données d'abord pour obtenir l'ID
+  // Générer un ID temporaire pour le nom de fichier
+  const tempReportId = crypto.randomUUID();
+
+  // Upload le PDF AVANT d'insérer dans la base de données
+  const pdfUrl = await uploadGBPReportPDF(
+    pdfBlob,
+    reportData.client.id,
+    tempReportId
+  );
+
+  // Maintenant insérer dans la base de données avec l'URL du PDF
   const { data: reportRecord, error: insertError } = await supabase
     .from('rapports_gbp')
     .insert({
@@ -96,6 +106,7 @@ export async function generateAndSaveGBPReport(
       type: reportType,
       mois: mois,
       annee: annee,
+      pdf_url: pdfUrl, // Inclure l'URL directement
       kpis: {
         vue_ensemble: reportData.kpis.vue_ensemble,
         appels: reportData.kpis.appels,
@@ -113,21 +124,31 @@ export async function generateAndSaveGBPReport(
     throw new Error(`Erreur lors de l'enregistrement du rapport: ${insertError.message}`);
   }
 
-  // Upload le PDF
-  const pdfUrl = await uploadGBPReportPDF(
-    pdfBlob,
-    reportData.client.id,
-    reportRecord.id
-  );
+  // Renommer le fichier avec le vrai ID du rapport
+  const finalFileName = `rapport-${reportRecord.id}.pdf`;
+  const finalFilePath = `${user.id}/${reportData.client.id}/${finalFileName}`;
+  const oldFilePath = `${user.id}/${reportData.client.id}/rapport-${tempReportId}.pdf`;
 
-  // Mettre à jour le rapport avec l'URL du PDF
-  const { error: updateError } = await supabase
-    .from('rapports_gbp')
-    .update({ pdf_url: pdfUrl })
-    .eq('id', reportRecord.id);
+  // Copier le fichier avec le nouveau nom
+  const { error: copyError } = await supabase.storage
+    .from('gbp-reports')
+    .copy(oldFilePath, finalFilePath);
 
-  if (updateError) {
-    throw new Error(`Erreur lors de la mise à jour du rapport: ${updateError.message}`);
+  if (!copyError) {
+    // Supprimer l'ancien fichier
+    await supabase.storage
+      .from('gbp-reports')
+      .remove([oldFilePath]);
+
+    // Mettre à jour l'URL dans la base de données
+    const { data: { publicUrl } } = supabase.storage
+      .from('gbp-reports')
+      .getPublicUrl(finalFilePath);
+
+    await supabase
+      .from('rapports_gbp')
+      .update({ pdf_url: publicUrl })
+      .eq('id', reportRecord.id);
   }
 
   return pdfUrl;

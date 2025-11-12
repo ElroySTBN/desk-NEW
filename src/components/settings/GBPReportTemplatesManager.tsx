@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Save, Trash2, Edit } from 'lucide-react';
+import { Plus, Save, Trash2, Edit, Upload } from 'lucide-react';
+import { GBPTemplateUploader } from './GBPTemplateUploader';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ interface GBPReportTemplate {
   name: string;
   description?: string;
   is_default: boolean;
+  template_base_url?: string | null;
   template_config: {
     pages?: Array<{
       type: string;
@@ -306,26 +308,34 @@ export function GBPReportTemplatesManager() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(template)}
-                    className="flex-1"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Modifier
-                  </Button>
-                  {!template.is_default && (
+                <div className="space-y-2">
+                  {template.template_base_url && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Upload className="h-3 w-3" />
+                      Template uploadé
+                    </div>
+                  )}
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(template.id)}
-                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleEdit(template)}
+                      className="flex-1"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Edit className="h-4 w-4 mr-2" />
+                      Modifier
                     </Button>
-                  )}
+                    {!template.is_default && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(template.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -334,54 +344,63 @@ export function GBPReportTemplatesManager() {
       )}
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate ? 'Modifier le template' : 'Nouveau template'}
             </DialogTitle>
             <DialogDescription>
-              Configurez les informations de base du template
+              Configurez les informations de base du template et uploadez votre template personnalisé
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Nom du template *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Template par défaut"
+          <div className="space-y-6">
+            {editingTemplate && (
+              <GBPTemplateUploader
+                template={editingTemplate}
+                onTemplateUpdated={fetchTemplates}
               />
-            </div>
+            )}
 
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Description du template..."
-                rows={3}
-              />
-            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Nom du template *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Template par défaut"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="is_default">Template par défaut</Label>
-              <Select
-                value={formData.is_default ? 'true' : 'false'}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, is_default: value === 'true' })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Oui</SelectItem>
-                  <SelectItem value="false">Non</SelectItem>
-                </SelectContent>
-              </Select>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Description du template..."
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="is_default">Template par défaut</Label>
+                <Select
+                  value={formData.is_default ? 'true' : 'false'}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, is_default: value === 'true' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Oui</SelectItem>
+                    <SelectItem value="false">Non</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
