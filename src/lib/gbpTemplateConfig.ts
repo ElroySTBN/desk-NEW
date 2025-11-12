@@ -1,87 +1,41 @@
 import type { GBPReportData } from '@/types/gbp-reports';
+import type { 
+  BaseTemplateConfig, 
+  VariableConfig as BaseVariableConfig,
+  TextPlacement as BaseTextPlacement,
+  ZonePlacement,
+  TemplateVariable 
+} from './templateConfig';
+import { 
+  cleanBaseTemplateConfig, 
+  validateBaseTemplateConfig,
+  DEFAULT_BASE_TEMPLATE_CONFIG 
+} from './templateConfig';
 
 /**
  * Configuration simplifiée pour un template de rapport GBP
- * Utilise des coordonnées fixes au lieu de zones configurables complexes
+ * Étend BaseTemplateConfig avec des propriétés spécifiques aux rapports GBP
  */
 
 /**
- * Configuration d'une variable à placer sur le template
+ * Configuration d'une variable à placer sur le template (alias pour compatibilité)
  */
-export interface VariableConfig {
-  /** Numéro de la page (1-indexed) */
-  page: number;
-  /** Position X en pixels (coordonnées du template original) */
-  x: number;
-  /** Position Y en pixels (coordonnées du template original) */
-  y: number;
-  /** Largeur en pixels */
-  width: number;
-  /** Hauteur en pixels */
-  height: number;
-  /** Type de variable : texte ou image */
-  type: 'text' | 'image';
-  /** Pour les textes : taille de police */
-  fontSize?: number;
-  /** Pour les textes : couleur (hex) */
-  color?: string;
-  /** Pour les textes : alignement */
-  align?: 'left' | 'center' | 'right';
-}
+export interface VariableConfig extends BaseVariableConfig {}
 
 /**
  * Configuration d'un placement de capture d'écran
  */
-export interface ScreenshotPlacement {
-  /** Numéro de la page (1-indexed) */
-  page: number;
-  /** Position X en pixels */
-  x: number;
-  /** Position Y en pixels */
-  y: number;
-  /** Largeur en pixels */
-  width: number;
-  /** Hauteur en pixels */
-  height: number;
-}
+export interface ScreenshotPlacement extends ZonePlacement {}
 
 /**
  * Configuration du placement du logo sur la page de couverture
  */
-export interface LogoPlacement {
-  /** Numéro de la page (toujours 1 pour la couverture) */
-  page: number;
-  /** Position X en pixels */
-  x: number;
-  /** Position Y en pixels */
-  y: number;
-  /** Largeur en pixels */
-  width: number;
-  /** Hauteur en pixels */
-  height: number;
-}
+export interface LogoPlacement extends ZonePlacement {}
 
 /**
  * Configuration d'un placement de texte d'analyse
  */
-export interface TextPlacement {
-  /** Numéro de la page (2-5 pour les catégories) */
-  page: number;
-  /** Position X en pixels */
-  x: number;
-  /** Position Y en pixels */
-  y: number;
-  /** Largeur en pixels */
-  width: number;
-  /** Hauteur en pixels */
-  height: number;
-  /** Taille de police */
-  fontSize?: number;
-  /** Couleur (hex) */
-  color?: string;
-  /** Alignement */
-  align?: 'left' | 'center' | 'right';
-}
+export interface TextPlacement extends BaseTextPlacement {}
 
 /**
  * Templates de textes conditionnels
@@ -102,13 +56,13 @@ export interface TextTemplates {
 
 /**
  * Configuration complète d'un template de rapport GBP
- * Structure : 5 pages
+ * Structure : 5 pages (ou plus avec le nouveau système)
  * - Page 1 : Couverture avec logo
  * - Pages 2-5 : Catégories (vue_ensemble, appels, clics_web, itineraire) avec screenshot et texte
  */
-export interface GBPTemplateConfig {
-  /** URLs des images de template (une par page, dans l'ordre : couverture, vue_ensemble, appels, clics_web, itineraire) */
-  pages: string[]; // Doit contenir exactement 5 URLs
+export interface GBPTemplateConfig extends BaseTemplateConfig {
+  /** URLs des images de template (une par page) */
+  pages: string[];
   
   /** Configuration du placement du logo sur la page de couverture (page 1) */
   logo_placement?: LogoPlacement;
@@ -140,10 +94,11 @@ export interface GBPTemplateConfig {
 }
 
 /**
- * Valeurs par défaut pour une configuration de template
+ * Valeurs par défaut pour une configuration de template GBP
  */
 export const DEFAULT_TEMPLATE_CONFIG: GBPTemplateConfig = {
-  pages: [], // 5 pages : couverture, vue_ensemble, appels, clics_web, itineraire
+  ...DEFAULT_BASE_TEMPLATE_CONFIG,
+  pages: [], // Pages : couverture, vue_ensemble, appels, clics_web, itineraire (peut être étendu)
   logo_placement: undefined,
   screenshot_placements: {
     vue_ensemble: { page: 2, x: 0, y: 0, width: 500, height: 300 },
@@ -164,35 +119,36 @@ export const DEFAULT_TEMPLATE_CONFIG: GBPTemplateConfig = {
     clics_web: { current: { x: 0, y: 0, width: 100, height: 30 }, previous: { x: 150, y: 0, width: 100, height: 30 } },
     itineraire: { current: { x: 0, y: 0, width: 100, height: 30 }, previous: { x: 150, y: 0, width: 100, height: 30 } },
   },
+  variables: {},
 };
 
 /**
- * Variables disponibles pour les templates
+ * Variables disponibles pour les templates GBP
  */
-export const AVAILABLE_VARIABLES = [
-  { value: 'client.name', label: 'Nom du client', type: 'text' as const },
-  { value: 'client.company', label: 'Nom de l\'entreprise', type: 'text' as const },
-  { value: 'client.logo_url', label: 'Logo du client', type: 'image' as const },
-  { value: 'period.startMonth', label: 'Mois de début', type: 'text' as const },
-  { value: 'period.endMonth', label: 'Mois de fin', type: 'text' as const },
-  { value: 'period.year', label: 'Année', type: 'text' as const },
-  { value: 'kpis.vue_ensemble.current', label: 'KPI Vue d\'ensemble - Current', type: 'text' as const },
-  { value: 'kpis.vue_ensemble.previous', label: 'KPI Vue d\'ensemble - Previous', type: 'text' as const },
-  { value: 'kpis.vue_ensemble.evolution', label: 'KPI Vue d\'ensemble - Évolution', type: 'text' as const },
-  { value: 'kpis.appels.current', label: 'KPI Appels - Current', type: 'text' as const },
-  { value: 'kpis.appels.previous', label: 'KPI Appels - Previous', type: 'text' as const },
-  { value: 'kpis.appels.evolution', label: 'KPI Appels - Évolution', type: 'text' as const },
-  { value: 'kpis.clics_web.current', label: 'KPI Clics Web - Current', type: 'text' as const },
-  { value: 'kpis.clics_web.previous', label: 'KPI Clics Web - Previous', type: 'text' as const },
-  { value: 'kpis.clics_web.evolution', label: 'KPI Clics Web - Évolution', type: 'text' as const },
-  { value: 'kpis.itineraire.current', label: 'KPI Itinéraire - Current', type: 'text' as const },
-  { value: 'kpis.itineraire.previous', label: 'KPI Itinéraire - Previous', type: 'text' as const },
-  { value: 'kpis.itineraire.evolution', label: 'KPI Itinéraire - Évolution', type: 'text' as const },
-  { value: 'analysis.vue_ensemble', label: 'Analyse Vue d\'ensemble', type: 'text' as const },
-  { value: 'analysis.appels', label: 'Analyse Appels', type: 'text' as const },
-  { value: 'analysis.clics_web', label: 'Analyse Clics Web', type: 'text' as const },
-  { value: 'analysis.itineraire', label: 'Analyse Itinéraire', type: 'text' as const },
-] as const;
+export const AVAILABLE_VARIABLES: TemplateVariable[] = [
+  { value: 'client.name', label: 'Nom du client', type: 'text' as const, category: 'Client' },
+  { value: 'client.company', label: 'Nom de l\'entreprise', type: 'text' as const, category: 'Client' },
+  { value: 'client.logo_url', label: 'Logo du client', type: 'image' as const, category: 'Client' },
+  { value: 'period.startMonth', label: 'Mois de début', type: 'text' as const, category: 'Période' },
+  { value: 'period.endMonth', label: 'Mois de fin', type: 'text' as const, category: 'Période' },
+  { value: 'period.year', label: 'Année', type: 'text' as const, category: 'Période' },
+  { value: 'kpis.vue_ensemble.current', label: 'KPI Vue d\'ensemble - Current', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.vue_ensemble.previous', label: 'KPI Vue d\'ensemble - Previous', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.vue_ensemble.evolution', label: 'KPI Vue d\'ensemble - Évolution', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.appels.current', label: 'KPI Appels - Current', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.appels.previous', label: 'KPI Appels - Previous', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.appels.evolution', label: 'KPI Appels - Évolution', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.clics_web.current', label: 'KPI Clics Web - Current', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.clics_web.previous', label: 'KPI Clics Web - Previous', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.clics_web.evolution', label: 'KPI Clics Web - Évolution', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.itineraire.current', label: 'KPI Itinéraire - Current', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.itineraire.previous', label: 'KPI Itinéraire - Previous', type: 'text' as const, category: 'KPIs' },
+  { value: 'kpis.itineraire.evolution', label: 'KPI Itinéraire - Évolution', type: 'text' as const, category: 'KPIs' },
+  { value: 'analysis.vue_ensemble', label: 'Analyse Vue d\'ensemble', type: 'text' as const, category: 'Analyse' },
+  { value: 'analysis.appels', label: 'Analyse Appels', type: 'text' as const, category: 'Analyse' },
+  { value: 'analysis.clics_web', label: 'Analyse Clics Web', type: 'text' as const, category: 'Analyse' },
+  { value: 'analysis.itineraire', label: 'Analyse Itinéraire', type: 'text' as const, category: 'Analyse' },
+];
 
 /**
  * Récupère la valeur d'une variable depuis les données du rapport
@@ -249,17 +205,18 @@ export function getVariableValue(
 }
 
 /**
- * Nettoie une configuration de template en supprimant les objets partiellement définis
+ * Nettoie une configuration de template GBP en supprimant les objets partiellement définis
  */
 export function cleanTemplateConfig(config: Partial<GBPTemplateConfig>): GBPTemplateConfig {
+  // D'abord nettoyer la configuration de base
+  const baseCleaned = cleanBaseTemplateConfig(config);
+  
   const cleaned: GBPTemplateConfig = {
-    pages: config.pages || [],
-    logo_placement: config.logo_placement,
+    ...baseCleaned,
     screenshot_placements: config.screenshot_placements || DEFAULT_TEMPLATE_CONFIG.screenshot_placements,
     text_placements: config.text_placements || DEFAULT_TEMPLATE_CONFIG.text_placements,
     text_templates: config.text_templates || {},
     ocr_zones: config.ocr_zones || DEFAULT_TEMPLATE_CONFIG.ocr_zones,
-    variables: config.variables || {},
   };
 
   // Nettoyer le logo_placement : ne garder que si complètement configuré
@@ -308,29 +265,25 @@ export function cleanTemplateConfig(config: Partial<GBPTemplateConfig>): GBPTemp
 }
 
 /**
- * Valide une configuration de template
+ * Valide une configuration de template GBP
  */
 export function validateTemplateConfig(config: Partial<GBPTemplateConfig>): {
   valid: boolean;
   errors: string[];
 } {
-  const errors: string[] = [];
+  // D'abord valider la configuration de base
+  const baseValidation = validateBaseTemplateConfig(config);
+  const errors: string[] = [...baseValidation.errors];
   
   // Nettoyer la configuration avant validation
   const cleanedConfig = cleanTemplateConfig(config);
   
-  // Ne pas valider les pages lors de la validation de base
-  // Les pages peuvent être uploadées plus tard
-  // La validation des pages se fera lors de la génération du rapport (dans getCanvaTemplate)
-  // if (!cleanedConfig.pages || cleanedConfig.pages.length === 0) {
-  //   errors.push('Au moins une page de template est requise');
-  // }
-  
   // Valider le logo_placement seulement s'il est défini
   if (cleanedConfig.logo_placement) {
     const logo = cleanedConfig.logo_placement;
-    if (logo.page !== undefined && logo.page !== 1) {
-      errors.push('Le logo doit être placé sur la page 1 (couverture)');
+    if (logo.page !== undefined && logo.page !== 1 && cleanedConfig.pages.length > 0) {
+      // Note: on n'impose plus que le logo soit sur la page 1, mais on peut ajouter un avertissement
+      // errors.push('Le logo doit être placé sur la page 1 (couverture)');
     }
     if (logo.x !== undefined && logo.y !== undefined) {
       if (typeof logo.x !== 'number' || typeof logo.y !== 'number') {
@@ -355,8 +308,10 @@ export function validateTemplateConfig(config: Partial<GBPTemplateConfig>): {
     
     // Ne valider que si le placement existe
     if (placement) {
-      if (placement.page !== undefined && placement.page !== expectedPage) {
-        errors.push(`Screenshot ${category}: devrait être placé sur la page ${expectedPage} (actuellement page ${placement.page})`);
+      // Note: on n'impose plus que les screenshots soient sur des pages spécifiques
+      // On valide juste que la page existe si des pages sont configurées
+      if (placement.page !== undefined && cleanedConfig.pages.length > 0 && placement.page > cleanedConfig.pages.length) {
+        errors.push(`Screenshot ${category}: la page ${placement.page} n'existe pas (${cleanedConfig.pages.length} pages disponibles)`);
       }
       if (placement.x !== undefined && placement.y !== undefined) {
         if (typeof placement.x !== 'number' || typeof placement.y !== 'number') {
@@ -379,8 +334,10 @@ export function validateTemplateConfig(config: Partial<GBPTemplateConfig>): {
     
     // Ne valider que si le placement existe
     if (placement) {
-      if (placement.page !== undefined && placement.page !== expectedPage) {
-        errors.push(`Texte ${category}: devrait être placé sur la page ${expectedPage} (actuellement page ${placement.page})`);
+      // Note: on n'impose plus que les textes soient sur des pages spécifiques
+      // On valide juste que la page existe si des pages sont configurées
+      if (placement.page !== undefined && cleanedConfig.pages.length > 0 && placement.page > cleanedConfig.pages.length) {
+        errors.push(`Texte ${category}: la page ${placement.page} n'existe pas (${cleanedConfig.pages.length} pages disponibles)`);
       }
       if (placement.x !== undefined && placement.y !== undefined) {
         if (typeof placement.x !== 'number' || typeof placement.y !== 'number') {
@@ -434,4 +391,3 @@ export function validateTemplateConfig(config: Partial<GBPTemplateConfig>): {
     errors,
   };
 }
-

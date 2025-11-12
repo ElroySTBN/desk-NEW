@@ -4,10 +4,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, RotateCcw, Image as ImageIcon, Type, MousePointer2 } from 'lucide-react';
-import type { GBPTemplateConfig, LogoPlacement, TextPlacement, ScreenshotPlacement } from '@/lib/gbpTemplateConfig';
-import type { OCRZone } from '@/lib/ocrService';
+import { Save, RotateCcw, Image as ImageIcon, Type, MousePointer2, Trash2, Edit } from 'lucide-react';
+import type { GBPTemplateConfig, LogoPlacement, TextPlacement, ScreenshotPlacement, AVAILABLE_VARIABLES } from '@/lib/gbpTemplateConfig';
+import type { VariableConfig } from '@/lib/templateConfig';
+import { AVAILABLE_VARIABLES as GBP_VARIABLES } from '@/lib/gbpTemplateConfig';
 
 interface ZoneRect {
   x: number;
@@ -19,6 +19,14 @@ interface ZoneRect {
 interface TemplateZoneConfiguratorProps {
   templateConfig: GBPTemplateConfig;
   onConfigChange: (config: Partial<GBPTemplateConfig>) => void;
+}
+
+interface ZoneInfo {
+  id: string;
+  type: 'logo' | 'screenshot' | 'text' | 'variable_text' | 'variable_image';
+  label: string;
+  zone: ZoneRect & { page: number; variable?: string; fontSize?: number; color?: string; align?: string };
+  category?: string;
 }
 
 const CATEGORIES = [
@@ -33,11 +41,15 @@ export function TemplateZoneConfigurator({
   onConfigChange,
 }: TemplateZoneConfiguratorProps) {
   const [selectedPage, setSelectedPage] = useState<number>(1);
-  const [selectedCategory, setSelectedCategory] = useState<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire' | null>(null);
-  const [editingZone, setEditingZone] = useState<'logo' | 'screenshot' | 'text' | 'ocr_current' | 'ocr_previous' | null>(null);
+  const [selectedZoneType, setSelectedZoneType] = useState<'text' | 'image' | 'logo' | 'screenshot' | null>(null);
+  const [selectedVariable, setSelectedVariable] = useState<string>('');
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [currentZone, setCurrentZone] = useState<ZoneRect | null>(null);
+  const [fontSize, setFontSize] = useState(12);
+  const [textColor, setTextColor] = useState('#000000');
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left');
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -45,14 +57,82 @@ export function TemplateZoneConfigurator({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState<string | null>(null);
 
+  // Générer la liste des pages disponibles
+  const availablePages = templateConfig.pages.length > 0 
+    ? templateConfig.pages.map((_, index) => index + 1)
+    : [1, 2, 3, 4, 5]; // Pages par défaut pour compatibilité
+
   // Récupérer l'URL de l'image pour la page sélectionnée
-  // Si une seule page est uploadée, l'utiliser pour toutes les pages
-  // Sinon, utiliser la page correspondante
-  const currentPageUrl = templateConfig.pages.length === 1
-    ? templateConfig.pages[0]
+  const currentPageUrl = templateConfig.pages.length === 0
+    ? null
     : (templateConfig.pages[selectedPage - 1] || templateConfig.pages[0] || null);
 
-  // Fonction pour dessiner une zone (définie avant d'être utilisée)
+  // Collecter toutes les zones pour la page sélectionnée
+  const getZonesForPage = useCallback((page: number): ZoneInfo[] => {
+    const zones: ZoneInfo[] = [];
+
+    // Logo sur page 1 (si applicable)
+    if (page === 1 && templateConfig.logo_placement) {
+      zones.push({
+        id: 'logo',
+        type: 'logo',
+        label: 'Logo',
+        zone: templateConfig.logo_placement,
+      });
+    }
+
+    // Zones spécifiques GBP (screenshots et textes)
+    if (page >= 2 && page <= 5) {
+      const categoryIndex = page - 2;
+      const category = CATEGORIES[categoryIndex];
+      
+      if (category) {
+        // Screenshot
+        const screenshotPlacement = templateConfig.screenshot_placements[category.value];
+        if (screenshotPlacement && screenshotPlacement.page === page) {
+          zones.push({
+            id: `screenshot_${category.value}`,
+            type: 'screenshot',
+            label: `Screenshot - ${category.label}`,
+            zone: screenshotPlacement,
+            category: category.value,
+          });
+        }
+
+        // Texte
+        const textPlacement = templateConfig.text_placements[category.value];
+        if (textPlacement && textPlacement.page === page) {
+          zones.push({
+            id: `text_${category.value}`,
+            type: 'text',
+            label: `Texte - ${category.label}`,
+            zone: textPlacement,
+            category: category.value,
+          });
+        }
+      }
+    }
+
+    // Zones génériques (variables)
+    if (templateConfig.variables) {
+      for (const [key, variable] of Object.entries(templateConfig.variables)) {
+        if (variable.page === page) {
+          zones.push({
+            id: `variable_${key}`,
+            type: variable.type === 'text' ? 'variable_text' : 'variable_image',
+            label: variable.variable || key,
+            zone: variable,
+          });
+        }
+      }
+    }
+
+    return zones;
+  }, [templateConfig]);
+
+  const pageZones = getZonesForPage(selectedPage);
+
+  // Fonction pour dessiner une zone
   const drawZone = useCallback((
     ctx: CanvasRenderingContext2D,
     zone: { x: number; y: number; width: number; height: number },
@@ -81,79 +161,49 @@ export function TemplateZoneConfigurator({
   }, []);
 
   // Obtenir la couleur selon le type de zone
-  const getZoneColor = useCallback((type: string | null): string => {
+  const getZoneColor = useCallback((type: string): string => {
     switch (type) {
       case 'logo':
+      case 'variable_image':
         return '#10b981';
       case 'screenshot':
         return '#3b82f6';
       case 'text':
+      case 'variable_text':
         return '#f59e0b';
-      case 'ocr_current':
-        return '#10b981';
-      case 'ocr_previous':
-        return '#3b82f6';
       default:
         return '#6b7280';
     }
   }, []);
 
-  // Fonction pour dessiner les zones sur le canvas (utilisée après chargement de l'image)
+  // Fonction pour dessiner toutes les zones sur le canvas
   const drawZonesOnCanvas = useCallback((
     ctx: CanvasRenderingContext2D,
     currentScale: number
   ) => {
-    // Dessiner les zones existantes selon la page
-    if (selectedPage === 1) {
-      // Page 1: Logo
-      if (templateConfig.logo_placement) {
-        drawZone(
-          ctx,
-          templateConfig.logo_placement,
-          'Logo',
-          '#10b981',
-          currentScale
-        );
-      }
-    } else if (selectedPage >= 2 && selectedPage <= 5) {
-      // Pages 2-5: Screenshot et texte
-      const categoryIndex = selectedPage - 2;
-      const category = CATEGORIES[categoryIndex];
-      
-      if (category) {
-        // Screenshot
-        const screenshotPlacement = templateConfig.screenshot_placements[category.value];
-        if (screenshotPlacement && screenshotPlacement.page === selectedPage) {
-          drawZone(
-            ctx,
-            screenshotPlacement,
-            'Screenshot',
-            '#3b82f6',
-            currentScale
-          );
-        }
-
-        // Texte
-        const textPlacement = templateConfig.text_placements[category.value];
-        if (textPlacement && textPlacement.page === selectedPage) {
-          drawZone(
-            ctx,
-            textPlacement,
-            'Texte d\'analyse',
-            '#f59e0b',
-            currentScale
-          );
-        }
-      }
-    }
+    // Dessiner toutes les zones de la page
+    pageZones.forEach(zoneInfo => {
+      drawZone(
+        ctx,
+        zoneInfo.zone,
+        zoneInfo.label,
+        getZoneColor(zoneInfo.type),
+        currentScale
+      );
+    });
 
     // Dessiner la zone en cours de dessin
-    if (currentZone && isDrawing) {
-      drawZone(ctx, currentZone, editingZone || 'Zone', getZoneColor(editingZone), 1);
+    if (currentZone && isDrawing && selectedZoneType) {
+      const label = selectedZoneType === 'text' || selectedZoneType === 'variable_text' 
+        ? 'Zone texte' 
+        : selectedZoneType === 'image' || selectedZoneType === 'variable_image'
+        ? 'Zone image'
+        : selectedZoneType;
+      drawZone(ctx, currentZone, label, getZoneColor(selectedZoneType), 1);
     }
-  }, [templateConfig, selectedPage, currentZone, isDrawing, editingZone, drawZone, getZoneColor]);
+  }, [pageZones, currentZone, isDrawing, selectedZoneType, drawZone, getZoneColor]);
 
-  // Charger l'image et calculer l'échelle avec gestion CORS améliorée
+  // Charger l'image
   useEffect(() => {
     if (!currentPageUrl) {
       setImageError('Aucune image pour cette page');
@@ -161,7 +211,6 @@ export function TemplateZoneConfigurator({
       return;
     }
 
-    // Vérifier si l'URL pointe vers un PDF (vérification basique)
     const urlLower = currentPageUrl.toLowerCase();
     if (urlLower.endsWith('.pdf') || urlLower.includes('.pdf?')) {
       setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG et les uploader dans l\'onglet "Template".');
@@ -172,13 +221,9 @@ export function TemplateZoneConfigurator({
     setImageLoading(true);
     setImageError(null);
     
-    // Utiliser fetch pour contourner les problèmes CORS (même pattern que OCRZoneEditor)
     const loadImageWithFetch = async () => {
       let objectUrl: string | null = null;
       try {
-        console.log('Chargement de l\'image:', currentPageUrl);
-        
-        // Essayer d'abord avec fetch pour contourner CORS
         const response = await fetch(currentPageUrl, {
           mode: 'cors',
           credentials: 'omit',
@@ -189,102 +234,51 @@ export function TemplateZoneConfigurator({
         }
         
         const blob = await response.blob();
-        console.log('Blob reçu:', blob.type, blob.size);
         
-        // Vérifier le type MIME du blob
         if (blob.type.includes('pdf') || blob.type.includes('application/pdf')) {
           throw new Error('PDF détecté dans le blob');
-        }
-        
-        // Vérifier que c'est bien une image
-        if (!blob.type.startsWith('image/')) {
-          console.warn('Type de fichier non image:', blob.type);
-          // Ne pas bloquer si le type n'est pas détecté (certains serveurs ne renvoient pas le type correct)
-          // On essaiera quand même de charger l'image
         }
         
         objectUrl = URL.createObjectURL(blob);
         const img = new Image();
         
         img.onload = () => {
-          console.log('Image chargée:', img.naturalWidth, img.naturalHeight);
-          
-          // Sauvegarder l'image dans la ref
           imageRef.current = img;
           
           if (objectUrl) {
             URL.revokeObjectURL(objectUrl);
           }
           
-          // Utiliser requestAnimationFrame pour s'assurer que le canvas est monté
           requestAnimationFrame(() => {
             const canvas = canvasRef.current;
             if (!canvas) {
-              console.warn('Canvas non disponible après requestAnimationFrame, nouvelle tentative...');
-              // Réessayer après un court délai
-              setTimeout(() => {
-                const canvasRetry = canvasRef.current;
-                if (!canvasRetry) {
-                  console.error('Canvas toujours non disponible');
-                  setImageError('Canvas non disponible. Veuillez rafraîchir la page.');
-                  setImageLoading(false);
-                  return;
-                }
-                initializeCanvasWithImage(canvasRetry, img);
-              }, 100);
+              setImageError('Canvas non disponible. Veuillez rafraîchir la page.');
+              setImageLoading(false);
               return;
             }
 
-            console.log('Canvas disponible, initialisation...');
-            initializeCanvasWithImage(canvas, img);
+            const maxWidth = 800;
+            const maxHeight = 600;
+            const scaleX = maxWidth / img.naturalWidth;
+            const scaleY = maxHeight / img.naturalHeight;
+            const newScale = Math.min(scaleX, scaleY, 1);
+
+            setScale(newScale);
+            canvas.width = img.naturalWidth * newScale;
+            canvas.height = img.naturalHeight * newScale;
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              drawZonesOnCanvas(ctx, newScale);
+            }
+            
+            setImageLoading(false);
           });
         };
         
-        // Fonction helper pour initialiser le canvas avec l'image
-        const initializeCanvasWithImage = (canvas: HTMLCanvasElement, img: HTMLImageElement) => {
-          // Calculer l'échelle pour que l'image rentre dans le canvas
-          const maxWidth = 800;
-          const maxHeight = 600;
-          const scaleX = maxWidth / img.naturalWidth;
-          const scaleY = maxHeight / img.naturalHeight;
-          const newScale = Math.min(scaleX, scaleY, 1);
-
-          setScale(newScale);
-          canvas.width = img.naturalWidth * newScale;
-          canvas.height = img.naturalHeight * newScale;
-
-          // Dessiner immédiatement après avoir chargé l'image
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // Dessiner les zones existantes
-            if (selectedPage === 1) {
-              if (templateConfig.logo_placement) {
-                drawZone(ctx, templateConfig.logo_placement, 'Logo', '#10b981', newScale);
-              }
-            } else if (selectedPage >= 2 && selectedPage <= 5) {
-              const categoryIndex = selectedPage - 2;
-              const category = CATEGORIES[categoryIndex];
-              if (category) {
-                const screenshotPlacement = templateConfig.screenshot_placements[category.value];
-                if (screenshotPlacement && screenshotPlacement.page === selectedPage) {
-                  drawZone(ctx, screenshotPlacement, 'Screenshot', '#3b82f6', newScale);
-                }
-                const textPlacement = templateConfig.text_placements[category.value];
-                if (textPlacement && textPlacement.page === selectedPage) {
-                  drawZone(ctx, textPlacement, 'Texte d\'analyse', '#f59e0b', newScale);
-                }
-              }
-            }
-          }
-          
-          setImageLoading(false);
-        };
-        
-        img.onerror = (error) => {
-          console.error('Erreur lors du chargement de l\'image:', error);
+        img.onerror = () => {
           if (objectUrl) {
             URL.revokeObjectURL(objectUrl);
           }
@@ -294,92 +288,46 @@ export function TemplateZoneConfigurator({
         
         img.src = objectUrl;
       } catch (error: any) {
-        console.warn('Fetch failed, trying direct load:', error);
-        
-        // Si c'est un PDF, ne pas essayer le fallback
-        if (error.message?.includes('PDF') || error.message?.includes('pdf')) {
+        if (error.message?.includes('PDF')) {
           setImageError('Les fichiers PDF ne peuvent pas être utilisés pour configurer les zones. Veuillez exporter votre template Canva en images PNG ou JPG (une image par page) et les uploader dans l\'onglet "Template".');
           setImageLoading(false);
           return;
         }
         
-        // Fallback : charger directement (peut échouer avec CORS)
+        // Fallback
         const img = new Image();
-        
         img.onload = () => {
-          console.log('Image chargée (fallback):', img.naturalWidth, img.naturalHeight);
-          
-          // Sauvegarder l'image dans la ref
           imageRef.current = img;
-          
-          // Utiliser requestAnimationFrame pour s'assurer que le canvas est monté
           requestAnimationFrame(() => {
             const canvas = canvasRef.current;
             if (!canvas) {
-              console.warn('Canvas non disponible (fallback) après requestAnimationFrame, nouvelle tentative...');
-              // Réessayer après un court délai
-              setTimeout(() => {
-                const canvasRetry = canvasRef.current;
-                if (!canvasRetry) {
-                  console.error('Canvas toujours non disponible (fallback)');
-                  setImageError('Canvas non disponible. Veuillez rafraîchir la page.');
-                  setImageLoading(false);
-                  return;
-                }
-                initializeCanvasWithImageFallback(canvasRetry, img);
-              }, 100);
+              setImageError('Canvas non disponible. Veuillez rafraîchir la page.');
+              setImageLoading(false);
               return;
             }
 
-            console.log('Canvas disponible (fallback), initialisation...');
-            initializeCanvasWithImageFallback(canvas, img);
+            const maxWidth = 800;
+            const maxHeight = 600;
+            const scaleX = maxWidth / img.naturalWidth;
+            const scaleY = maxHeight / img.naturalHeight;
+            const newScale = Math.min(scaleX, scaleY, 1);
+
+            setScale(newScale);
+            canvas.width = img.naturalWidth * newScale;
+            canvas.height = img.naturalHeight * newScale;
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              drawZonesOnCanvas(ctx, newScale);
+            }
+            
+            setImageLoading(false);
           });
         };
         
-        // Fonction helper pour initialiser le canvas avec l'image (fallback)
-        const initializeCanvasWithImageFallback = (canvas: HTMLCanvasElement, img: HTMLImageElement) => {
-          const maxWidth = 800;
-          const maxHeight = 600;
-          const scaleX = maxWidth / img.naturalWidth;
-          const scaleY = maxHeight / img.naturalHeight;
-          const newScale = Math.min(scaleX, scaleY, 1);
-
-          setScale(newScale);
-          canvas.width = img.naturalWidth * newScale;
-          canvas.height = img.naturalHeight * newScale;
-
-          // Dessiner immédiatement après avoir chargé l'image
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // Dessiner les zones existantes
-            if (selectedPage === 1) {
-              if (templateConfig.logo_placement) {
-                drawZone(ctx, templateConfig.logo_placement, 'Logo', '#10b981', newScale);
-              }
-            } else if (selectedPage >= 2 && selectedPage <= 5) {
-              const categoryIndex = selectedPage - 2;
-              const category = CATEGORIES[categoryIndex];
-              if (category) {
-                const screenshotPlacement = templateConfig.screenshot_placements[category.value];
-                if (screenshotPlacement && screenshotPlacement.page === selectedPage) {
-                  drawZone(ctx, screenshotPlacement, 'Screenshot', '#3b82f6', newScale);
-                }
-                const textPlacement = templateConfig.text_placements[category.value];
-                if (textPlacement && textPlacement.page === selectedPage) {
-                  drawZone(ctx, textPlacement, 'Texte d\'analyse', '#f59e0b', newScale);
-                }
-              }
-            }
-          }
-          
-          setImageLoading(false);
-        };
-        
-        img.onerror = (error) => {
-          console.error('Erreur de chargement de l\'image (fallback):', error);
+        img.onerror = () => {
           setImageError(`Impossible de charger l'image depuis ${currentPageUrl}. Vérifiez que l'URL est accessible, que CORS est configuré et qu'il s'agit d'une image PNG ou JPG.`);
           setImageLoading(false);
         };
@@ -390,15 +338,9 @@ export function TemplateZoneConfigurator({
     };
 
     loadImageWithFetch();
-    
-    // Cleanup function
-    return () => {
-      // Ne pas nettoyer imageRef ici car il est utilisé par drawCanvas
-      // L'image sera nettoyée quand l'URL change
-    };
-  }, [currentPageUrl, selectedPage, templateConfig.logo_placement, templateConfig.screenshot_placements, templateConfig.text_placements, drawZone]); // Dépendances simplifiées
+  }, [currentPageUrl, drawZonesOnCanvas]);
 
-  // Re-dessiner le canvas quand les zones changent (sans dépendances circulaires)
+  // Re-dessiner le canvas quand les zones changent
   useEffect(() => {
     if (!imageLoading && imageRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
@@ -411,31 +353,24 @@ export function TemplateZoneConfigurator({
         drawZonesOnCanvas(ctx, scale);
       }
     }
-  }, [imageLoading, scale, drawZonesOnCanvas]);
+  }, [imageLoading, scale, drawZonesOnCanvas, pageZones]);
 
-  // Convertir les coordonnées de la souris en coordonnées de l'image originale
+  // Convertir les coordonnées de la souris
   const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const img = imageRef.current;
     if (!canvas || !img) return null;
 
     const rect = canvas.getBoundingClientRect();
-    // Coordonnées de la souris par rapport au canvas (en pixels CSS)
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Le canvas est redimensionné pour afficher l'image à l'échelle
-    // Convertir les coordonnées CSS vers les coordonnées réelles du canvas
-    // Puis vers les coordonnées de l'image originale
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     
-    // Coordonnées dans le canvas (en pixels réels du canvas)
     const canvasX = mouseX * scaleX;
     const canvasY = mouseY * scaleY;
     
-    // Convertir vers les coordonnées de l'image originale
-    // canvas.width = img.naturalWidth * scale, donc on divise par scale
     const imageX = canvasX / scale;
     const imageY = canvasY / scale;
 
@@ -444,7 +379,7 @@ export function TemplateZoneConfigurator({
 
   // Gestion du clic sur le canvas
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!editingZone) return;
+    if (!selectedZoneType) return;
 
     const pos = getMousePos(e);
     if (!pos) return;
@@ -455,7 +390,7 @@ export function TemplateZoneConfigurator({
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !startPos || !editingZone) return;
+    if (!isDrawing || !startPos || !selectedZoneType) return;
 
     const pos = getMousePos(e);
     if (!pos) return;
@@ -469,20 +404,26 @@ export function TemplateZoneConfigurator({
   };
 
   const handleCanvasMouseUp = () => {
-    if (!isDrawing || !currentZone || !editingZone) return;
+    if (!isDrawing || !currentZone || !selectedZoneType) return;
 
-    // Sauvegarder la zone selon le type
-    saveZone(currentZone);
+    if (currentZone.width > 10 && currentZone.height > 10) {
+      saveZone(currentZone);
+    }
 
     setIsDrawing(false);
     setStartPos(null);
     setCurrentZone(null);
-    setEditingZone(null);
+    setSelectedZoneType(null);
   };
 
   // Sauvegarder la zone
   const saveZone = (zone: ZoneRect) => {
-    if (selectedPage === 1 && editingZone === 'logo') {
+    if (!selectedZoneType || !selectedVariable) {
+      // Si pas de variable sélectionnée, on ne peut pas sauvegarder
+      return;
+    }
+
+    if (selectedPage === 1 && selectedZoneType === 'logo') {
       // Logo sur page 1
       onConfigChange({
         logo_placement: {
@@ -493,72 +434,117 @@ export function TemplateZoneConfigurator({
           height: zone.height,
         },
       });
-    } else if (selectedPage >= 2 && selectedPage <= 5 && selectedCategory) {
-      // Screenshot ou texte sur pages 2-5
-      if (editingZone === 'screenshot') {
-        onConfigChange({
-          screenshot_placements: {
-            ...templateConfig.screenshot_placements,
-            [selectedCategory]: {
-              page: selectedPage,
-              x: zone.x,
-              y: zone.y,
-              width: zone.width,
-              height: zone.height,
+    } else if (selectedZoneType === 'text' || selectedZoneType === 'image') {
+      // Zone générique (variable)
+      const variableConfig: VariableConfig = {
+        page: selectedPage,
+        x: zone.x,
+        y: zone.y,
+        width: zone.width,
+        height: zone.height,
+        type: selectedZoneType === 'text' ? 'text' : 'image',
+        variable: selectedVariable,
+        fontSize: selectedZoneType === 'text' ? fontSize : undefined,
+        color: selectedZoneType === 'text' ? textColor : undefined,
+        align: selectedZoneType === 'text' ? textAlign : undefined,
+      };
+
+      const existingVariables = templateConfig.variables || {};
+      const variableKey = selectedVariable.replace(/\./g, '_');
+      
+      onConfigChange({
+        variables: {
+          ...existingVariables,
+          [variableKey]: variableConfig,
+        },
+      });
+    } else if (selectedPage >= 2 && selectedPage <= 5) {
+      // Zones spécifiques GBP (screenshots et textes)
+      const categoryIndex = selectedPage - 2;
+      const category = CATEGORIES[categoryIndex];
+      
+      if (category) {
+        if (selectedZoneType === 'screenshot') {
+          onConfigChange({
+            screenshot_placements: {
+              ...templateConfig.screenshot_placements,
+              [category.value]: {
+                page: selectedPage,
+                x: zone.x,
+                y: zone.y,
+                width: zone.width,
+                height: zone.height,
+              },
             },
-          },
-        });
-      } else if (editingZone === 'text') {
-        onConfigChange({
-          text_placements: {
-            ...templateConfig.text_placements,
-            [selectedCategory]: {
-              page: selectedPage,
-              x: zone.x,
-              y: zone.y,
-              width: zone.width,
-              height: zone.height,
-              fontSize: templateConfig.text_placements[selectedCategory]?.fontSize || 12,
-              color: templateConfig.text_placements[selectedCategory]?.color || '#000000',
-              align: templateConfig.text_placements[selectedCategory]?.align || 'left',
+          });
+        } else if (selectedZoneType === 'text') {
+          onConfigChange({
+            text_placements: {
+              ...templateConfig.text_placements,
+              [category.value]: {
+                page: selectedPage,
+                x: zone.x,
+                y: zone.y,
+                width: zone.width,
+                height: zone.height,
+                fontSize: fontSize,
+                color: textColor,
+                align: textAlign,
+              },
             },
-          },
-        });
+          });
+        }
       }
     }
   };
 
-  // Gérer le changement de page
-  useEffect(() => {
-    if (selectedPage === 1) {
-      setSelectedCategory(null);
-      setEditingZone(null);
-    } else if (selectedPage >= 2 && selectedPage <= 5) {
-      const categoryIndex = selectedPage - 2;
-      const category = CATEGORIES[categoryIndex];
-      if (category) {
-        setSelectedCategory(category.value);
-      }
+  // Supprimer une zone
+  const handleDeleteZone = (zoneId: string) => {
+    if (zoneId === 'logo') {
+      onConfigChange({
+        logo_placement: undefined,
+      });
+    } else if (zoneId.startsWith('screenshot_')) {
+      const category = zoneId.replace('screenshot_', '') as keyof typeof templateConfig.screenshot_placements;
+      onConfigChange({
+        screenshot_placements: {
+          ...templateConfig.screenshot_placements,
+          [category]: undefined as any,
+        },
+      });
+    } else if (zoneId.startsWith('text_')) {
+      const category = zoneId.replace('text_', '') as keyof typeof templateConfig.text_placements;
+      onConfigChange({
+        text_placements: {
+          ...templateConfig.text_placements,
+          [category]: undefined as any,
+        },
+      });
+    } else if (zoneId.startsWith('variable_')) {
+      const variableKey = zoneId.replace('variable_', '');
+      const existingVariables = { ...(templateConfig.variables || {}) };
+      delete existingVariables[variableKey];
+      onConfigChange({
+        variables: existingVariables,
+      });
     }
-  }, [selectedPage]);
+  };
 
   if (!currentPageUrl) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <p className="text-muted-foreground">
-            Aucune image pour la page {selectedPage}. Veuillez d'abord uploader les pages du template.
+            Aucune image pour la page {selectedPage}. Veuillez d'abord uploader les pages du template dans l'onglet "Template".
           </p>
         </CardContent>
       </Card>
     );
   }
 
-  // Vérifier si c'est un PDF pour afficher un message d'erreur
   const urlLower = currentPageUrl?.toLowerCase() || '';
   const isPDF = urlLower.endsWith('.pdf') || urlLower.includes('.pdf?');
   
-  // Afficher un message d'erreur clair si c'est un PDF
   if (isPDF) {
     return (
       <Card>
@@ -574,12 +560,8 @@ export function TemplateZoneConfigurator({
               <p className="font-semibold">Pour configurer les zones, vous devez :</p>
               <ol className="list-decimal list-inside space-y-1 ml-2">
                 <li>Exporter votre template Canva en images PNG ou JPG (une image par page)</li>
-                <li>Dans Canva : Menu → Télécharger → Format PNG ou JPG</li>
-                <li>Pour chaque page (5 pages au total) : exporter séparément</li>
-                <li>Revenir dans l'onglet "Template" et uploader les 5 images</li>
+                <li>Revenir dans l'onglet "Template" et uploader les images</li>
               </ol>
-              <p className="mt-4 font-semibold">Note :</p>
-              <p>Vous pouvez toujours utiliser le PDF pour la génération du rapport final. Les images PNG/JPG sont uniquement nécessaires pour configurer visuellement les zones.</p>
             </div>
           </div>
         </CardContent>
@@ -587,13 +569,25 @@ export function TemplateZoneConfigurator({
     );
   }
 
+  // Filtrer les variables selon le type de zone
+  const availableVariables = GBP_VARIABLES.filter(v => {
+    if (!selectedZoneType) return true;
+    if (selectedZoneType === 'text' || selectedZoneType === 'variable_text') {
+      return v.type === 'text';
+    }
+    if (selectedZoneType === 'image' || selectedZoneType === 'variable_image' || selectedZoneType === 'logo') {
+      return v.type === 'image';
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>Configuration des zones</CardTitle>
           <CardDescription>
-            Sélectionnez une page et configurez visuellement les zones pour le logo, les screenshots, les textes et les zones OCR.
+            Sélectionnez une page et configurez visuellement les zones pour les logos, les textes, les images et les screenshots.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -602,73 +596,186 @@ export function TemplateZoneConfigurator({
             <Label>Page</Label>
             <Select
               value={selectedPage.toString()}
-              onValueChange={(value) => setSelectedPage(parseInt(value))}
+              onValueChange={(value) => {
+                setSelectedPage(parseInt(value));
+                setSelectedZoneType(null);
+                setEditingZoneId(null);
+              }}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">Page 1 - Couverture (Logo)</SelectItem>
-                <SelectItem value="2">Page 2 - Vue d'ensemble</SelectItem>
-                <SelectItem value="3">Page 3 - Appels</SelectItem>
-                <SelectItem value="4">Page 4 - Clics web</SelectItem>
-                <SelectItem value="5">Page 5 - Itinéraire</SelectItem>
+                {availablePages.map(pageNum => (
+                  <SelectItem key={pageNum} value={pageNum.toString()}>
+                    Page {pageNum}
+                    {pageNum === 1 && ' - Couverture'}
+                    {pageNum >= 2 && pageNum <= 5 && CATEGORIES[pageNum - 2] && ` - ${CATEGORIES[pageNum - 2].label}`}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Instructions selon la page */}
-          {selectedPage === 1 && (
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>Page 1 - Couverture:</strong> Configurez la zone où le logo du client sera placé.
-                Cliquez sur "Configurer le logo" puis dessinez une zone sur l'image.
-              </p>
+          {/* Zones existantes */}
+          {pageZones.length > 0 && (
+            <div className="space-y-2">
+              <Label>Zones configurées sur cette page</Label>
+              <div className="space-y-2">
+                {pageZones.map(zoneInfo => (
+                  <div key={zoneInfo.id} className="flex items-center justify-between p-2 border rounded">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-4 h-4 rounded"
+                        style={{ backgroundColor: getZoneColor(zoneInfo.type) }}
+                      />
+                      <span className="text-sm">{zoneInfo.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({Math.round(zoneInfo.zone.x)}, {Math.round(zoneInfo.zone.y)}, {Math.round(zoneInfo.zone.width)}x{Math.round(zoneInfo.zone.height)})
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteZone(zoneInfo.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {selectedPage >= 2 && selectedPage <= 5 && selectedCategory && (
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>Page {selectedPage} - {CATEGORIES[selectedPage - 2].label}:</strong>
-                Configurez les zones pour le screenshot et le texte d'analyse.
-                Cliquez sur les boutons ci-dessous puis dessinez les zones sur l'image.
-              </p>
-            </div>
-          )}
-
-          {/* Boutons d'édition selon la page */}
-          <div className="flex gap-2 flex-wrap">
-            {selectedPage === 1 && (
-              <Button
-                type="button"
-                variant={editingZone === 'logo' ? 'default' : 'outline'}
-                onClick={() => setEditingZone(editingZone === 'logo' ? null : 'logo')}
+          {/* Configuration d'une nouvelle zone */}
+          <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+            <Label>Ajouter une nouvelle zone</Label>
+            
+            {/* Type de zone */}
+            <div className="space-y-2">
+              <Label>Type de zone</Label>
+              <Select
+                value={selectedZoneType || ''}
+                onValueChange={(value) => {
+                  setSelectedZoneType(value as any);
+                  setSelectedVariable('');
+                }}
               >
-                <ImageIcon className="h-4 w-4 mr-2" />
-                {editingZone === 'logo' ? 'Annuler' : 'Configurer le logo'}
-              </Button>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un type de zone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedPage === 1 && (
+                    <SelectItem value="logo">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4" />
+                        Logo (Page 1 uniquement)
+                      </div>
+                    </SelectItem>
+                  )}
+                  {(selectedPage === 1 || selectedPage >= 2) && (
+                    <>
+                      <SelectItem value="text">
+                        <div className="flex items-center gap-2">
+                          <Type className="h-4 w-4" />
+                          Zone de texte
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="image">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4" />
+                          Zone d'image
+                        </div>
+                      </SelectItem>
+                    </>
+                  )}
+                  {selectedPage >= 2 && selectedPage <= 5 && (
+                    <>
+                      <SelectItem value="screenshot">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4" />
+                          Screenshot
+                        </div>
+                      </SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Variable (pour les zones texte/image génériques) */}
+            {(selectedZoneType === 'text' || selectedZoneType === 'image') && (
+              <div className="space-y-2">
+                <Label>Variable</Label>
+                <Select
+                  value={selectedVariable}
+                  onValueChange={setSelectedVariable}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une variable" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableVariables.map(variable => (
+                      <SelectItem key={variable.value} value={variable.value}>
+                        {variable.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
 
-            {selectedPage >= 2 && selectedPage <= 5 && selectedCategory && (
-              <>
-                <Button
-                  type="button"
-                  variant={editingZone === 'screenshot' ? 'default' : 'outline'}
-                  onClick={() => setEditingZone(editingZone === 'screenshot' ? null : 'screenshot')}
-                >
-                  <ImageIcon className="h-4 w-4 mr-2" />
-                  {editingZone === 'screenshot' ? 'Annuler' : 'Configurer le screenshot'}
-                </Button>
-                <Button
-                  type="button"
-                  variant={editingZone === 'text' ? 'default' : 'outline'}
-                  onClick={() => setEditingZone(editingZone === 'text' ? null : 'text')}
-                >
-                  <Type className="h-4 w-4 mr-2" />
-                  {editingZone === 'text' ? 'Annuler' : 'Configurer le texte'}
-                </Button>
-              </>
+            {/* Options de texte */}
+            {(selectedZoneType === 'text' || (selectedPage >= 2 && selectedPage <= 5 && selectedZoneType === 'screenshot')) && selectedZoneType !== 'screenshot' && (
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label>Taille de police</Label>
+                  <Input
+                    type="number"
+                    value={fontSize}
+                    onChange={(e) => setFontSize(parseInt(e.target.value) || 12)}
+                    min="8"
+                    max="72"
+                  />
+                </div>
+                <div>
+                  <Label>Couleur</Label>
+                  <Input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Alignement</Label>
+                  <Select
+                    value={textAlign}
+                    onValueChange={(value: 'left' | 'center' | 'right') => setTextAlign(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Gauche</SelectItem>
+                      <SelectItem value="center">Centre</SelectItem>
+                      <SelectItem value="right">Droite</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {/* Instructions */}
+            {selectedZoneType && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-sm text-blue-900 dark:text-blue-100">
+                  <MousePointer2 className="h-4 w-4 inline mr-2" />
+                  Mode édition activé: Cliquez et glissez sur l'image ci-dessous pour dessiner une zone.
+                  {!selectedVariable && (selectedZoneType === 'text' || selectedZoneType === 'image') && (
+                    <span className="block mt-1 text-xs">⚠️ Veuillez sélectionner une variable avant de dessiner.</span>
+                  )}
+                </p>
+              </div>
             )}
           </div>
 
@@ -698,66 +805,13 @@ export function TemplateZoneConfigurator({
                 onMouseMove={handleCanvasMouseMove}
                 onMouseUp={handleCanvasMouseUp}
                 onMouseLeave={handleCanvasMouseUp}
-                className="cursor-crosshair"
+                className={`${selectedZoneType ? 'cursor-crosshair' : 'cursor-default'}`}
                 style={{ display: 'block', width: '100%', height: 'auto' }}
               />
             </div>
-          )}
-
-          {/* Instructions de dessin */}
-          {editingZone && (
-            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-              <p className="text-sm text-yellow-900 dark:text-yellow-100">
-                <MousePointer2 className="h-4 w-4 inline mr-2" />
-                Mode édition activé: Cliquez et glissez sur l'image pour dessiner une zone.
-              </p>
-            </div>
-          )}
-
-          {/* Configuration des zones OCR (pour les screenshots) */}
-          {selectedPage >= 2 && selectedPage <= 5 && selectedCategory && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Zones OCR pour {CATEGORIES[selectedPage - 2].label}</CardTitle>
-                <CardDescription className="text-xs">
-                  Configurez les zones OCR pour extraire les valeurs actuelles et précédentes depuis les screenshots.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  <p>
-                    Les zones OCR sont configurées lors de l'upload des screenshots.
-                    Utilisez l'éditeur OCR dans la section de création de rapport pour configurer ces zones.
-                  </p>
-                </div>
-                {templateConfig.ocr_zones[selectedCategory] && (
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <Label>Zone Current</Label>
-                      <div className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded">
-                        X: {templateConfig.ocr_zones[selectedCategory].current.x.toFixed(0)}, 
-                        Y: {templateConfig.ocr_zones[selectedCategory].current.y.toFixed(0)}, 
-                        W: {templateConfig.ocr_zones[selectedCategory].current.width.toFixed(0)}, 
-                        H: {templateConfig.ocr_zones[selectedCategory].current.height.toFixed(0)}
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Zone Previous</Label>
-                      <div className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded">
-                        X: {templateConfig.ocr_zones[selectedCategory].previous.x.toFixed(0)}, 
-                        Y: {templateConfig.ocr_zones[selectedCategory].previous.y.toFixed(0)}, 
-                        W: {templateConfig.ocr_zones[selectedCategory].previous.width.toFixed(0)}, 
-                        H: {templateConfig.ocr_zones[selectedCategory].previous.height.toFixed(0)}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
-

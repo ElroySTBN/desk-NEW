@@ -34,6 +34,7 @@ interface GBPReportTemplate {
   name: string;
   description?: string;
   is_default: boolean;
+  template_type?: 'gbp_report' | 'audit_document' | 'custom';
   template_base_url?: string | null;
   template_config: GBPTemplateConfig | any;
 }
@@ -48,6 +49,7 @@ export function GBPReportTemplatesManager() {
     name: '',
     description: '',
     is_default: false,
+    template_type: 'gbp_report' as 'gbp_report' | 'audit_document' | 'custom',
   });
   const [templateConfig, setTemplateConfig] = useState<GBPTemplateConfig>(DEFAULT_TEMPLATE_CONFIG);
 
@@ -115,6 +117,7 @@ export function GBPReportTemplatesManager() {
           name: 'Template par défaut',
           description: 'Template standard - Uploadez vos pages et configurez les variables',
           is_default: true,
+          template_type: 'gbp_report',
           template_config: defaultConfig,
         });
 
@@ -164,6 +167,7 @@ export function GBPReportTemplatesManager() {
       name: template.name,
       description: template.description || '',
       is_default: template.is_default,
+      template_type: template.template_type || 'gbp_report',
     });
     
     // Charger la configuration du template (nouveau format simplifié)
@@ -304,6 +308,7 @@ export function GBPReportTemplatesManager() {
             name: formData.name,
             description: formData.description,
             is_default: formData.is_default,
+            template_type: formData.template_type,
             template_config: cleanedConfig,
           })
           .eq('id', editingTemplate.id);
@@ -404,6 +409,36 @@ export function GBPReportTemplatesManager() {
                         {template.description}
                       </CardDescription>
                     )}
+                    {template.template_type && (
+                      <div className="mt-2">
+                        <span className="text-xs px-2 py-1 bg-muted rounded">
+                          {template.template_type === 'gbp_report' && 'Rapport GBP'}
+                          {template.template_type === 'audit_document' && 'Document d\'audit'}
+                          {template.template_type === 'custom' && 'Template personnalisé'}
+                        </span>
+                      </div>
+                    )}
+                    {template.template_config && (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        <span>{template.template_config.pages?.length || 0} page(s)</span>
+                        {template.template_config.pages?.length > 0 && (
+                          <span className="ml-2">
+                            {(() => {
+                              let count = 0;
+                              if (template.template_config.logo_placement) count++;
+                              if (template.template_config.variables) count += Object.keys(template.template_config.variables).length;
+                              if (template.template_config.screenshot_placements) {
+                                count += Object.values(template.template_config.screenshot_placements).filter((p: any) => p && p.page).length;
+                              }
+                              if (template.template_config.text_placements) {
+                                count += Object.values(template.template_config.text_placements).filter((p: any) => p && p.page).length;
+                              }
+                              return count;
+                            })()} zone(s)
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -485,6 +520,28 @@ export function GBPReportTemplatesManager() {
               </div>
 
               <div>
+                <Label htmlFor="template_type">Type de template</Label>
+                <Select
+                  value={formData.template_type}
+                  onValueChange={(value: 'gbp_report' | 'audit_document' | 'custom') =>
+                    setFormData({ ...formData, template_type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gbp_report">Rapport GBP</SelectItem>
+                    <SelectItem value="audit_document">Document d'audit</SelectItem>
+                    <SelectItem value="custom">Template personnalisé</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Le type de template détermine les variables disponibles et la structure du document.
+                </p>
+              </div>
+
+              <div>
                 <Label htmlFor="is_default">Template par défaut</Label>
                 <Select
                   value={formData.is_default ? 'true' : 'false'}
@@ -501,6 +558,38 @@ export function GBPReportTemplatesManager() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Indicateur de progression */}
+              {editingTemplate && (
+                <div className="p-4 border rounded-lg bg-muted/50">
+                  <Label className="text-sm font-semibold">Progression de la configuration</Label>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Pages uploadées</span>
+                      <span className="font-semibold">
+                        {templateConfig.pages?.length || 0} page(s)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Zones configurées</span>
+                      <span className="font-semibold">
+                        {(() => {
+                          let count = 0;
+                          if (templateConfig.logo_placement) count++;
+                          if (templateConfig.variables) count += Object.keys(templateConfig.variables).length;
+                          if (templateConfig.screenshot_placements) {
+                            count += Object.values(templateConfig.screenshot_placements).filter((p: any) => p && p.page).length;
+                          }
+                          if (templateConfig.text_placements) {
+                            count += Object.values(templateConfig.text_placements).filter((p: any) => p && p.page).length;
+                          }
+                          return count;
+                        })()} zone(s)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="template">

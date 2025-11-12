@@ -608,6 +608,53 @@ export type Database = {
           },
         ]
       }
+      gbp_report_templates: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          description: string | null
+          is_default: boolean
+          template_type: string | null
+          template_base_url: string | null
+          template_config: Json
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          description?: string | null
+          is_default?: boolean
+          template_type?: string | null
+          template_base_url?: string | null
+          template_config?: Json
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          description?: string | null
+          is_default?: boolean
+          template_type?: string | null
+          template_base_url?: string | null
+          template_config?: Json
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gbp_report_templates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       contacts_with_organization: {
