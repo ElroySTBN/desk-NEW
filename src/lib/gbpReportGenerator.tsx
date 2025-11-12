@@ -121,26 +121,51 @@ export async function uploadGBPReportPDF(
   }
 
   const fileName = `rapport-${reportId}.pdf`;
+  // Le chemin doit commencer par user.id pour que la politique RLS fonctionne
+  // Format: {user_id}/{client_id}/{filename}
   const filePath = `${user.id}/${clientId}/${fileName}`;
 
-  // Upload vers Supabase Storage
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('gbp-reports')
-    .upload(filePath, pdfBlob, {
-      contentType: 'application/pdf',
-      upsert: true,
-    });
+  try {
+    // Upload vers Supabase Storage
+    // Note: La politique RLS vérifie que le premier dossier du chemin correspond à auth.uid()
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('gbp-reports')
+      .upload(filePath, pdfBlob, {
+        contentType: 'application/pdf',
+        upsert: true,
+        cacheControl: '3600',
+      });
 
-  if (uploadError) {
-    throw new Error(`Erreur lors de l'upload du PDF: ${uploadError.message}`);
+    if (uploadError) {
+      console.error('Erreur upload PDF:', uploadError);
+      console.error('Chemin du fichier:', filePath);
+      console.error('User ID:', user.id);
+      
+      // Si l'erreur est liée à RLS, donner un message plus explicite
+      if (uploadError.message.includes('row-level security') || uploadError.message.includes('RLS')) {
+        throw new Error(`Erreur de sécurité lors de l'upload du PDF. Vérifiez que les politiques RLS sont correctement configurées dans Supabase. Détails: ${uploadError.message}`);
+      }
+      
+      throw new Error(`Erreur lors de l'upload du PDF: ${uploadError.message}`);
+    }
+
+    // Récupérer l'URL publique
+    const { data: { publicUrl } } = supabase.storage
+      .from('gbp-reports')
+      .getPublicUrl(filePath);
+
+    if (!publicUrl) {
+      throw new Error('Impossible de récupérer l\'URL publique du PDF');
+    }
+
+    return publicUrl;
+  } catch (error: any) {
+    // Ré-émettre l'erreur avec plus de détails
+    if (error.message) {
+      throw error;
+    }
+    throw new Error(`Erreur lors de l'upload du PDF: ${error.toString()}`);
   }
-
-  // Récupérer l'URL publique
-  const { data: { publicUrl } } = supabase.storage
-    .from('gbp-reports')
-    .getPublicUrl(filePath);
-
-  return publicUrl;
 }
 
 /**

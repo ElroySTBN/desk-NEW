@@ -11,6 +11,7 @@ import { Plus, Save, Trash2, Edit, Upload, Settings } from 'lucide-react';
 import { GBPTemplateUploader } from './GBPTemplateUploader';
 import { TextTemplateEditor } from './TextTemplateEditor';
 import { TemplateZoneConfigurator } from './TemplateZoneConfigurator';
+import { OCRTemplateZoneConfigurator } from './OCRTemplateZoneConfigurator';
 import { DEFAULT_OCR_ZONES } from '@/lib/kpiExtractor';
 import type { GBPTemplateConfig } from '@/lib/gbpTemplateConfig';
 import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig, cleanTemplateConfig } from '@/lib/gbpTemplateConfig';
@@ -512,10 +513,11 @@ export function GBPReportTemplatesManager() {
           </DialogHeader>
 
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="general">Général</TabsTrigger>
               <TabsTrigger value="template">Template</TabsTrigger>
               <TabsTrigger value="zones">Zones</TabsTrigger>
+              <TabsTrigger value="ocr">Zones OCR</TabsTrigger>
               <TabsTrigger value="textes">Templates de textes</TabsTrigger>
             </TabsList>
 
@@ -673,6 +675,69 @@ export function GBPReportTemplatesManager() {
                   <CardContent className="py-8 text-center text-muted-foreground">
                     <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Veuillez d'abord uploader les pages du template dans l'onglet "Template"</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="ocr" className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm font-semibold text-blue-900 mb-2">
+                  Configuration des zones OCR
+                </p>
+                <p className="text-sm text-blue-800">
+                  Configurez les zones OCR pour extraire automatiquement les métriques depuis vos captures d'écran.
+                  Upload une image de référence pour chaque type de screenshot et dessinez les zones où se trouvent les valeurs "Current" et "Previous".
+                </p>
+              </div>
+
+              {editingTemplate ? (
+                <OCRTemplateZoneConfigurator
+                  templateConfig={templateConfig}
+                  onConfigChange={(updatedConfig) => {
+                    // Mettre à jour la configuration locale
+                    setTemplateConfig(prev => ({
+                      ...prev,
+                      ...updatedConfig,
+                    }));
+                    
+                    // Sauvegarder automatiquement
+                    const newConfig = {
+                      ...templateConfig,
+                      ...updatedConfig,
+                    };
+                    
+                    // Nettoyer et sauvegarder
+                    const cleanedConfig = cleanTemplateConfig(newConfig);
+                    
+                    // Sauvegarder dans la base de données
+                    supabase
+                      .from('gbp_report_templates' as any)
+                      .update({ template_config: cleanedConfig })
+                      .eq('id', editingTemplate.id)
+                      .then(({ error }) => {
+                        if (error) {
+                          toast({
+                            title: 'Erreur',
+                            description: error.message,
+                            variant: 'destructive',
+                          });
+                        } else {
+                          setTemplateConfig(cleanedConfig);
+                          toast({
+                            title: '✅ Zones OCR sauvegardées',
+                            description: 'Les zones OCR ont été enregistrées avec succès',
+                          });
+                        }
+                      });
+                  }}
+                  templateId={editingTemplate.id}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Veuillez d'abord créer ou éditer un template pour configurer les zones OCR</p>
                   </CardContent>
                 </Card>
               )}
