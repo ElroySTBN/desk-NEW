@@ -10,7 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Save, Trash2, Edit, Upload, Settings } from 'lucide-react';
 import { GBPTemplateUploader } from './GBPTemplateUploader';
 import { OCRZoneEditor } from '@/components/reports/gbp/OCRZoneEditor';
+import { VariableZoneEditor } from '@/components/reports/gbp/VariableZoneEditor';
 import { DEFAULT_OCR_ZONES, type KPIZonesConfig } from '@/lib/kpiExtractor';
+import type { VariableZone } from '@/lib/canvaReportGenerator';
 import {
   Dialog,
   DialogContent,
@@ -55,6 +57,9 @@ export function GBPReportTemplatesManager() {
   });
   const [ocrZones, setOcrZones] = useState<KPIZonesConfig>(DEFAULT_OCR_ZONES);
   const [selectedScreenshotType, setSelectedScreenshotType] = useState<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire'>('vue_ensemble');
+  const [variableZones, setVariableZones] = useState<Record<string, VariableZone>>({});
+  const [selectedVariableZone, setSelectedVariableZone] = useState<string | null>(null);
+  const [selectedPage, setSelectedPage] = useState<number>(1);
 
   useEffect(() => {
     fetchTemplates();
@@ -192,6 +197,12 @@ export function GBPReportTemplatesManager() {
     } else {
       setOcrZones(DEFAULT_OCR_ZONES);
     }
+    // Charger les zones de variables si elles existent
+    if (template.template_config?.variable_zones) {
+      setVariableZones(template.template_config.variable_zones);
+    } else {
+      setVariableZones({});
+    }
     setShowEditDialog(true);
   };
 
@@ -228,6 +239,89 @@ export function GBPReportTemplatesManager() {
       });
 
       fetchTemplates();
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveVariableZone = async (zone: VariableZone) => {
+    if (!editingTemplate) return;
+
+    const updatedZones = {
+      ...variableZones,
+      [zone.variable]: zone,
+    };
+    setVariableZones(updatedZones);
+
+    // Sauvegarder dans la base de données
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const currentConfig = editingTemplate.template_config || {};
+      const updatedConfig = {
+        ...currentConfig,
+        variable_zones: updatedZones,
+      };
+
+      const { error } = await supabase
+        .from('gbp_report_templates')
+        .update({ template_config: updatedConfig })
+        .eq('id', editingTemplate.id);
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Zone de variable sauvegardée',
+        description: `La zone pour "${zone.variable}" a été enregistrée`,
+      });
+
+      fetchTemplates();
+      setSelectedVariableZone(null);
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteVariableZone = async (variableName: string) => {
+    if (!editingTemplate) return;
+
+    const updatedZones = { ...variableZones };
+    delete updatedZones[variableName];
+    setVariableZones(updatedZones);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const currentConfig = editingTemplate.template_config || {};
+      const updatedConfig = {
+        ...currentConfig,
+        variable_zones: updatedZones,
+      };
+
+      const { error } = await supabase
+        .from('gbp_report_templates')
+        .update({ template_config: updatedConfig })
+        .eq('id', editingTemplate.id);
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Zone supprimée',
+        description: 'La zone de variable a été supprimée',
+      });
+
+      fetchTemplates();
+      setSelectedVariableZone(null);
     } catch (error: any) {
       toast({
         title: 'Erreur',
@@ -408,9 +502,10 @@ export function GBPReportTemplatesManager() {
           </DialogHeader>
 
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="general">Général</TabsTrigger>
               <TabsTrigger value="template">Template</TabsTrigger>
+              <TabsTrigger value="variables">Zones Variables</TabsTrigger>
               <TabsTrigger value="ocr">Zones OCR</TabsTrigger>
             </TabsList>
 
@@ -461,6 +556,99 @@ export function GBPReportTemplatesManager() {
                   template={editingTemplate}
                   onTemplateUpdated={fetchTemplates}
                 />
+              )}
+            </TabsContent>
+
+            <TabsContent value="variables" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Page</Label>
+                  <Select
+                    value={selectedPage.toString()}
+                    onValueChange={(value) => setSelectedPage(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Page 1</SelectItem>
+                      <SelectItem value="2">Page 2</SelectItem>
+                      <SelectItem value="3">Page 3</SelectItem>
+                      <SelectItem value="4">Page 4</SelectItem>
+                      <SelectItem value="5">Page 5</SelectItem>
+                      <SelectItem value="6">Page 6</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Zone existante</Label>
+                  <Select
+                    value={selectedVariableZone || ''}
+                    onValueChange={(value) => setSelectedVariableZone(value || null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Nouvelle zone..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nouvelle zone...</SelectItem>
+                      {Object.entries(variableZones)
+                        .filter(([_, zone]) => zone.page === selectedPage)
+                        .map(([varName, zone]) => (
+                          <SelectItem key={varName} value={varName}>
+                            {varName} ({zone.type || 'text'})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {editingTemplate && editingTemplate.template_base_url ? (
+                <VariableZoneEditor
+                  imageUrl={editingTemplate.template_base_url}
+                  pageNumber={selectedPage}
+                  initialZone={selectedVariableZone ? variableZones[selectedVariableZone] : undefined}
+                  onSave={handleSaveVariableZone}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Veuillez d'abord uploader un template pour configurer les zones de variables</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {Object.keys(variableZones).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Zones configurées</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {Object.entries(variableZones)
+                        .filter(([_, zone]) => zone.page === selectedPage)
+                        .map(([varName, zone]) => (
+                          <div key={varName} className="flex items-center justify-between p-2 border rounded">
+                            <div>
+                              <strong>{varName}</strong> ({zone.type || 'text'})
+                              <div className="text-xs text-muted-foreground">
+                                x={Math.round(zone.x)}, y={Math.round(zone.y)}, 
+                                w={Math.round(zone.width)}, h={Math.round(zone.height)}
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteVariableZone(varName)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 

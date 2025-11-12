@@ -13,6 +13,7 @@ export interface VariableZone {
   height: number;
   page: number;
   variable: string;
+  type?: 'text' | 'image'; // Type de zone : texte ou image (logo)
   fontSize?: number;
   color?: string;
   align?: 'left' | 'center' | 'right';
@@ -130,28 +131,53 @@ export async function generateCanvaReportPDF(
     const scaleX = finalWidth / imgWidth;
     const scaleY = finalHeight / imgHeight;
 
-    // Remplir les variables de texte
+    // Remplir les variables (texte et images)
     for (const [varName, zone] of Object.entries(templateConfig.variable_zones)) {
       if (zone.page !== pageIndex + 1) continue;
 
-      const value = getVariableValue(varName, reportData);
+      const zoneType = zone.type || 'text'; // Par défaut, c'est du texte
+      const value = getVariableValue(varName, reportData, zoneType);
       if (!value) continue;
 
       // Convertir les coordonnées du template vers les coordonnées PDF
       const pdfX = x + (zone.x * scaleX);
       const pdfY = y + (zone.y * scaleY);
 
-      // Configuration du texte
-      doc.setFontSize(zone.fontSize || 12);
-      doc.setTextColor(zone.color || '#000000');
-      
-      // Alignement
-      const textOptions: any = {
-        align: zone.align || 'left',
-      };
+      if (zoneType === 'image') {
+        // C'est une image (logo)
+        try {
+          const image = await loadImage(value);
+          
+          // Convertir les dimensions
+          const imageWidth = zone.width * scaleX;
+          const imageHeight = zone.height * scaleY;
 
-      // Ajouter le texte
-      doc.text(value, pdfX, pdfY, textOptions);
+          // Ajouter l'image
+          doc.addImage(
+            image.src,
+            'PNG',
+            pdfX,
+            pdfY,
+            imageWidth,
+            imageHeight
+          );
+        } catch (error) {
+          console.error(`Erreur lors du chargement de l'image ${varName}:`, error);
+        }
+      } else {
+        // C'est du texte
+        // Configuration du texte
+        doc.setFontSize(zone.fontSize || 12);
+        doc.setTextColor(zone.color || '#000000');
+        
+        // Alignement
+        const textOptions: any = {
+          align: zone.align || 'left',
+        };
+
+        // Ajouter le texte
+        doc.text(value, pdfX, pdfY, textOptions);
+      }
     }
 
     // Ajouter les captures d'écran
@@ -190,13 +216,20 @@ export async function generateCanvaReportPDF(
 
 /**
  * Récupère la valeur d'une variable depuis les données du rapport
+ * @param varName Nom de la variable (ex: "client.name", "client.logo_url")
+ * @param reportData Données du rapport
+ * @param type Type de variable ('text' ou 'image')
  */
-function getVariableValue(varName: string, reportData: GBPReportData): string | null {
+function getVariableValue(varName: string, reportData: GBPReportData, type: 'text' | 'image' = 'text'): string | null {
   const parts = varName.split('.');
   
   if (parts[0] === 'client') {
     if (parts[1] === 'name') return reportData.client.name;
     if (parts[1] === 'company') return reportData.client.company || reportData.client.name;
+    if (parts[1] === 'logo_url' || parts[1] === 'logo') {
+      // Pour les logos, retourner l'URL
+      return reportData.client.logo_url || null;
+    }
   }
   
   if (parts[0] === 'period') {
