@@ -110,7 +110,7 @@ export function GBPTemplateUploader({ template, onTemplateUpdated }: GBPTemplate
       setTemplateUrl(publicUrl);
       toast({
         title: '✅ Template uploadé',
-        description: 'Le template a été uploadé avec succès',
+        description: 'Le template a été uploadé avec succès. Allez dans l\'onglet "Zones" pour configurer les placements (logo, screenshots, textes).',
       });
       onTemplateUpdated();
     } catch (error: any) {
@@ -206,7 +206,7 @@ export function GBPTemplateUploader({ template, onTemplateUpdated }: GBPTemplate
       <CardHeader>
         <CardTitle>Template de Base</CardTitle>
         <CardDescription>
-          Uploadez votre template personnalisé (PDF ou image). Vous pourrez ensuite définir les zones pour les variables.
+          Uploadez votre template personnalisé (PDF ou image). Après l'upload, allez dans l'onglet "Zones" pour configurer visuellement où placer le logo, les screenshots et les textes.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

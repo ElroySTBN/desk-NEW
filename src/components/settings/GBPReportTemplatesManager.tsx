@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Save, Trash2, Edit, Upload, Settings } from 'lucide-react';
 import { GBPTemplateUploader } from './GBPTemplateUploader';
 import { TextTemplateEditor } from './TextTemplateEditor';
+import { TemplateZoneConfigurator } from './TemplateZoneConfigurator';
 import { DEFAULT_OCR_ZONES } from '@/lib/kpiExtractor';
 import type { GBPTemplateConfig } from '@/lib/gbpTemplateConfig';
 import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig, cleanTemplateConfig } from '@/lib/gbpTemplateConfig';
@@ -454,9 +455,10 @@ export function GBPReportTemplatesManager() {
           </DialogHeader>
 
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="general">Général</TabsTrigger>
               <TabsTrigger value="template">Template</TabsTrigger>
+              <TabsTrigger value="zones">Zones</TabsTrigger>
               <TabsTrigger value="textes">Templates de textes</TabsTrigger>
             </TabsList>
 
@@ -523,6 +525,64 @@ export function GBPReportTemplatesManager() {
                     }
                   }}
                 />
+              )}
+            </TabsContent>
+
+            <TabsContent value="zones" className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm font-semibold text-blue-900 mb-2">
+                  Configuration des zones du template
+                </p>
+                <p className="text-sm text-blue-800">
+                  Configurez visuellement où placer le logo, les screenshots, les textes d'analyse et les zones OCR sur chaque page du template.
+                  Uploadez d'abord vos pages de template dans l'onglet "Template", puis configurez les zones ici.
+                </p>
+              </div>
+
+              {editingTemplate && templateConfig.pages.length > 0 ? (
+                <TemplateZoneConfigurator
+                  templateConfig={templateConfig}
+                  onConfigChange={(updatedConfig) => {
+                    // Mettre à jour la configuration locale
+                    setTemplateConfig(prev => ({
+                      ...prev,
+                      ...updatedConfig,
+                    }));
+                    
+                    // Sauvegarder automatiquement
+                    const newConfig = {
+                      ...templateConfig,
+                      ...updatedConfig,
+                    };
+                    
+                    // Nettoyer et sauvegarder
+                    const cleanedConfig = cleanTemplateConfig(newConfig);
+                    
+                    // Sauvegarder dans la base de données
+                    supabase
+                      .from('gbp_report_templates' as any)
+                      .update({ template_config: cleanedConfig })
+                      .eq('id', editingTemplate.id)
+                      .then(({ error }) => {
+                        if (error) {
+                          toast({
+                            title: 'Erreur',
+                            description: error.message,
+                            variant: 'destructive',
+                          });
+                        } else {
+                          setTemplateConfig(cleanedConfig);
+                        }
+                      });
+                  }}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Veuillez d'abord uploader les pages du template dans l'onglet "Template"</p>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 

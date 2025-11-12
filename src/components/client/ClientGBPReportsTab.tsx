@@ -61,11 +61,46 @@ export function ClientGBPReportsTab({ clientId }: ClientGBPReportsTabProps) {
     }
   };
 
-  const handleDownload = (pdfUrl: string, mois: string, annee: number) => {
-    const link = document.createElement('a');
-    link.href = pdfUrl;
-    link.download = `rapport-gbp-${mois}-${annee}.pdf`;
-    link.click();
+  const handleDownload = async (pdfUrl: string, mois: string, annee: number) => {
+    try {
+      // Vérifier que l'URL est accessible
+      const response = await fetch(pdfUrl, { method: 'HEAD' });
+      if (!response.ok) {
+        throw new Error(`Le fichier n'est pas accessible (${response.status})`);
+      }
+
+      // Télécharger le fichier
+      const blob = await fetch(pdfUrl).then(r => r.blob());
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rapport-gbp-${mois}-${annee}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast({
+        title: 'Erreur de téléchargement',
+        description: error.message || 'Impossible de télécharger le rapport. Vérifiez que le bucket est public.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleView = async (pdfUrl: string) => {
+    try {
+      // Vérifier que l'URL est accessible
+      const response = await fetch(pdfUrl, { method: 'HEAD' });
+      if (!response.ok) {
+        throw new Error(`Le fichier n'est pas accessible (${response.status})`);
+      }
+      window.open(pdfUrl, '_blank');
+    } catch (error: any) {
+      toast({
+        title: 'Erreur de visualisation',
+        description: error.message || 'Impossible d\'afficher le rapport. Vérifiez que le bucket est public.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleResendEmail = async (report: GBPReport) => {
@@ -191,7 +226,7 @@ export function ClientGBPReportsTab({ clientId }: ClientGBPReportsTabProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.open(report.pdf_url, '_blank')}
+                    onClick={() => handleView(report.pdf_url)}
                     className="flex-1"
                   >
                     <Eye className="h-4 w-4 mr-2" />

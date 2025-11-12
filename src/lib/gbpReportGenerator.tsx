@@ -203,6 +203,11 @@ export async function generateAndSaveGBPReport(
   const finalFilePath = `${user.id}/${reportData.client.id}/${finalFileName}`;
   const oldFilePath = `${user.id}/${reportData.client.id}/rapport-${tempReportId}.pdf`;
 
+  // Générer l'URL finale dès maintenant (même si le fichier n'est pas encore renommé)
+  const { data: { publicUrl: finalPublicUrl } } = supabase.storage
+    .from('gbp-reports')
+    .getPublicUrl(finalFilePath);
+
   // Copier le fichier avec le nouveau nom
   const { error: copyError } = await supabase.storage
     .from('gbp-reports')
@@ -214,20 +219,21 @@ export async function generateAndSaveGBPReport(
       .from('gbp-reports')
       .remove([oldFilePath]);
 
-    // Mettre à jour l'URL dans la base de données
-    const { data: { publicUrl } } = supabase.storage
-      .from('gbp-reports')
-      .getPublicUrl(finalFilePath);
-
+    // Mettre à jour l'URL dans la base de données avec la nouvelle URL
     if (reportRecord && reportRecord.id) {
       await supabase
         .from('rapports_gbp' as any)
-        .update({ pdf_url: publicUrl })
+        .update({ pdf_url: finalPublicUrl })
         .eq('id', reportRecord.id);
     }
-  }
 
-  return pdfUrl;
+    // Retourner la nouvelle URL publique
+    return finalPublicUrl;
+  } else {
+    // Si le renommage a échoué, retourner l'URL temporaire
+    console.warn('Erreur lors du renommage du fichier:', copyError);
+    return pdfUrl;
+  }
 }
 
 /**
