@@ -110,16 +110,18 @@ export function GBPReportTemplatesManager() {
         pages: [], // Pages à uploader par l'utilisateur
       };
 
+      // Préparer les données à insérer (sans template_type pour éviter l'erreur si la migration n'est pas appliquée)
+      const insertData: any = {
+        user_id: user.id,
+        name: 'Template par défaut',
+        description: 'Template standard - Uploadez vos pages et configurez les variables',
+        is_default: true,
+        template_config: defaultConfig,
+      };
+
       const { error } = await supabase
         .from('gbp_report_templates' as any)
-        .insert({
-          user_id: user.id,
-          name: 'Template par défaut',
-          description: 'Template standard - Uploadez vos pages et configurez les variables',
-          is_default: true,
-          template_type: 'gbp_report',
-          template_config: defaultConfig,
-        });
+        .insert(insertData);
 
       if (error) throw error;
 
@@ -171,7 +173,9 @@ export function GBPReportTemplatesManager() {
       name: template.name,
       description: template.description || '',
       is_default: template.is_default,
-      template_type: template.template_type || 'gbp_report',
+      // template_type est omis car la colonne peut ne pas exister dans la base de données
+      // Il sera défini à 'gbp_report' par défaut si la migration n'a pas été appliquée
+      template_type: (template.template_type as 'gbp_report' | 'audit_document' | 'custom') || 'gbp_report',
     });
     
     // Charger la configuration du template (nouveau format simplifié)
@@ -316,15 +320,19 @@ export function GBPReportTemplatesManager() {
           });
         }
 
+        // Préparer les données à mettre à jour
+        // Note: template_type est omis pour éviter l'erreur si la migration n'a pas été appliquée
+        // Pour activer template_type, exécutez le script SQL dans supabase/apply_template_type_migration.sql
+        const updateData: any = {
+          name: formData.name,
+          description: formData.description,
+          is_default: formData.is_default,
+          template_config: cleanedConfig,
+        };
+
         const { error } = await supabase
           .from('gbp_report_templates' as any)
-          .update({
-            name: formData.name,
-            description: formData.description,
-            is_default: formData.is_default,
-            template_type: formData.template_type,
-            template_config: cleanedConfig,
-          })
+          .update(updateData)
           .eq('id', editingTemplate.id);
 
         if (error) throw error;
@@ -533,27 +541,8 @@ export function GBPReportTemplatesManager() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="template_type">Type de template</Label>
-                <Select
-                  value={formData.template_type}
-                  onValueChange={(value: 'gbp_report' | 'audit_document' | 'custom') =>
-                    setFormData({ ...formData, template_type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gbp_report">Rapport GBP</SelectItem>
-                    <SelectItem value="audit_document">Document d'audit</SelectItem>
-                    <SelectItem value="custom">Template personnalisé</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Le type de template détermine les variables disponibles et la structure du document.
-                </p>
-              </div>
+              {/* Type de template - temporairement désactivé jusqu'à ce que la migration soit appliquée */}
+              {/* Pour activer : exécutez le script SQL dans supabase/apply_template_type_migration.sql */}
 
               <div>
                 <Label htmlFor="is_default">Template par défaut</Label>
