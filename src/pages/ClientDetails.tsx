@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Users, Star, BarChart3, MessageSquare } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClientInfoTab } from "@/components/client/ClientInfoTab";
 import { ClientKPIsTab } from "@/components/client/ClientKPIsTab";
@@ -82,65 +81,6 @@ const ClientDetails = () => {
         clientName={client.company || client.name}
         clientEmail={client.email}
       />
-
-      {/* Système de Gestion des Avis */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Link to={`/clients/${id}/employees`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Équipe</p>
-                <p className="text-xs text-muted-foreground">Membres & QR codes</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to={`/clients/${id}/funnel-setup`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <Star className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Configuration Avis</p>
-                <p className="text-xs text-muted-foreground">Funnel & plateformes</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to={`/clients/${id}/scan-reports`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <BarChart3 className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Rapports</p>
-                <p className="text-xs text-muted-foreground">Stats de scans</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to={`/clients/${id}/negative-reviews`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <MessageSquare className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Avis Négatifs</p>
-                <p className="text-xs text-muted-foreground">À traiter</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
 
       <Tabs defaultValue="info" className="w-full">
         <TabsList className="grid w-full grid-cols-11">

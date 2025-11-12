@@ -16,12 +16,6 @@ import Onboarding from "./pages/Onboarding";
 import CreateOnboarding from "./pages/CreateOnboarding";
 import OnboardingForm from "./pages/OnboardingForm";
 import OnboardingExport from "./pages/OnboardingExport";
-import ClientEmployees from "./pages/ClientEmployees";
-import ClientScanReports from "./pages/ClientScanReports";
-import ClientNegativeReviews from "./pages/ClientNegativeReviews";
-import OrganizationReviewCampaign from "./pages/OrganizationReviewCampaign";
-import FunnelSetup from "./pages/FunnelSetup";
-import FunnelContentFlow from "./pages/FunnelContentFlow";
 import MonthlyReports from "./pages/MonthlyReports";
 import GBPReports from "./pages/GBPReports";
 import ScanRedirect from "./pages/ScanRedirect";
@@ -44,13 +38,6 @@ const App = () => (
           <Route path="/" element={<Dashboard />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/clients/:id" element={<ClientDetails />} />
-          <Route path="/clients/:id/review-campaign" element={<OrganizationReviewCampaign />} />
-          <Route path="/clients/:id/employees" element={<ClientEmployees />} />
-          <Route path="/clients/:id/review-settings" element={<FunnelSetup />} />
-          <Route path="/clients/:id/scan-reports" element={<ClientScanReports />} />
-          <Route path="/clients/:id/negative-reviews" element={<ClientNegativeReviews />} />
-          <Route path="/clients/:id/funnel-setup" element={<FunnelSetup />} />
-          <Route path="/clients/:id/funnel-content" element={<FunnelContentFlow />} />
           {/* Legacy routes - redirect to clients */}
           <Route path="/organizations" element={<Clients />} />
           <Route path="/organizations/:id" element={<ClientDetails />} />

@@ -76,21 +76,21 @@ const Dashboard = () => {
     // Total facturé ce mois
     const { data: monthlyInvoices } = await supabase
       .from("invoices")
-      .select("montant_ttc")
+      .select("amount_ttc")
       .eq("user_id", user.id)
-      .eq("statut", "payee")
-      .gte("date_emission", firstDayOfMonth.toISOString().split("T")[0]);
+      .eq("status", "payee")
+      .gte("date", firstDayOfMonth.toISOString().split("T")[0]);
 
-    const totalInvoicedThisMonth = monthlyInvoices?.reduce((sum, inv) => sum + Number(inv.montant_ttc), 0) || 0;
+    const totalInvoicedThisMonth = monthlyInvoices?.reduce((sum, inv) => sum + Number(inv.amount_ttc), 0) || 0;
 
     // Total facturé
     const { data: allInvoices } = await supabase
       .from("invoices")
-      .select("montant_ttc")
+      .select("amount_ttc")
       .eq("user_id", user.id)
-      .eq("statut", "payee");
+      .eq("status", "payee");
 
-    const totalFacture = allInvoices?.reduce((sum, inv) => sum + Number(inv.montant_ttc), 0) || 0;
+    const totalFacture = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_ttc), 0) || 0;
 
     setStats({
       activeClients: activeCount || 0,

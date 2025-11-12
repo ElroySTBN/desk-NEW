@@ -25,7 +25,7 @@ async function generateInvoiceNumber(): Promise<string> {
     const { count } = await supabase
       .from("invoices")
       .select("*", { count: "exact", head: true })
-      .like("numero_facture", `FACT-${year}-${month}-%`);
+      .like("invoice_number", `FACT-${year}-${month}-%`);
     
     const nextNumber = (count || 0) + 1;
     return `FACT-${year}-${month}-${String(nextNumber).padStart(4, "0")}`;
@@ -58,13 +58,12 @@ export async function createInvoiceForClient(client: Client) {
     .insert({
       user_id: user.id,
       client_id: client.id,
-      numero_facture: invoiceNumber,
-      montant: montantHT,
-      montant_ttc: montantTTC,
+      invoice_number: invoiceNumber,
+      amount_ht: montantHT,
+      amount_ttc: montantTTC,
       tva_rate: tvaRate,
-      date_emission: today.toISOString().split("T")[0],
-      date_echeance: new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // +15 days
-      statut: "envoyee",
+      date: today.toISOString().split("T")[0],
+      status: "en_attente",
     })
     .select()
     .single();
@@ -122,20 +121,14 @@ export async function generateAndSendInvoice(client: Client) {
     // 2. Send email
     await sendInvoiceEmail(
       client,
-      invoice.numero_facture,
-      Number(invoice.montant_ttc)
+      invoice.invoice_number,
+      Number(invoice.amount_ttc)
     );
-
-    // 3. Update invoice with send date
-    await supabase
-      .from("invoices")
-      .update({ date_envoi: new Date().toISOString() })
-      .eq("id", invoice.id);
 
     return {
       success: true,
       invoice,
-      message: `Facture ${invoice.numero_facture} créée et envoyée à ${client.email}`,
+      message: `Facture ${invoice.invoice_number} créée et envoyée à ${client.email}`,
     };
   } catch (error: any) {
     console.error("Error in generateAndSendInvoice:", error);

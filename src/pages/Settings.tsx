@@ -9,6 +9,7 @@ import { Building2, Package, Save, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ProductsManager } from "@/components/settings/ProductsManager";
 import { ReportTemplatesManager } from "@/components/settings/ReportTemplatesManager";
+import { GBPReportTemplatesManager } from "@/components/settings/GBPReportTemplatesManager";
 
 interface CompanySettings {
   id?: string;
@@ -162,6 +163,10 @@ const Settings = () => {
             Produits & Services
           </TabsTrigger>
           <TabsTrigger value="report-templates" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Templates Textes
+          </TabsTrigger>
+          <TabsTrigger value="gbp-templates" className="gap-2">
             <FileText className="h-4 w-4" />
             Templates Rapports GBP
           </TabsTrigger>
@@ -375,6 +380,10 @@ const Settings = () => {
 
         <TabsContent value="report-templates">
           <ReportTemplatesManager />
+        </TabsContent>
+
+        <TabsContent value="gbp-templates">
+          <GBPReportTemplatesManager />
         </TabsContent>
       </Tabs>
     </div>

@@ -65,7 +65,7 @@ serve(async (req) => {
           .from("invoices")
           .select("id")
           .eq("client_id", client.id)
-          .eq("date_emission", today.toISOString().split("T")[0])
+          .eq("date", today.toISOString().split("T")[0])
           .single();
 
         if (existingInvoice) {
@@ -94,13 +94,12 @@ serve(async (req) => {
           .insert({
             user_id: client.user_id,
             client_id: client.id,
-            numero_facture: invoiceNumber,
-            montant: montantHT,
-            montant_ttc: montantTTC,
+            invoice_number: invoiceNumber,
+            amount_ht: montantHT,
+            amount_ttc: montantTTC,
             tva_rate: tvaRate,
-            date_emission: today.toISOString().split("T")[0],
-            date_echeance: new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-            statut: "envoyee",
+            date: today.toISOString().split("T")[0],
+            status: "en_attente",
           })
           .select()
           .single();
@@ -132,12 +131,6 @@ serve(async (req) => {
         if (emailError) {
           console.error(`Error sending email for ${client.name}:`, emailError);
           // Don't fail the whole process if email fails
-        } else {
-          // Update invoice with send date
-          await supabase
-            .from("invoices")
-            .update({ date_envoi: new Date().toISOString() })
-            .eq("id", invoice.id);
         }
 
         results.success++;
