@@ -54,20 +54,19 @@ export function TemplateZoneConfigurator({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const pageZonesRef = useRef<ZoneInfo[]>([]);
-  const drawAllZonesRef = useRef<typeof drawAllZones | null>(null);
+  type DrawAllZonesFunction = (
+    ctx: CanvasRenderingContext2D,
+    currentScale: number,
+    zones: ZoneInfo[],
+    drawingZone: ZoneRect | null,
+    isCurrentlyDrawing: boolean,
+    zoneType: string | null
+  ) => void;
+  
+  const drawAllZonesRef = useRef<DrawAllZonesFunction | null>(null);
   const [scale, setScale] = useState(1);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState<string | null>(null);
-  
-  // Mettre à jour la ref des zones quand elles changent
-  useEffect(() => {
-    pageZonesRef.current = pageZones;
-  }, [pageZones]);
-  
-  // Mettre à jour la ref de drawAllZones quand elle change
-  useEffect(() => {
-    drawAllZonesRef.current = drawAllZones;
-  }, [drawAllZones]);
 
   // Générer la liste des pages disponibles
   const availablePages = templateConfig.pages.length > 0 
@@ -142,6 +141,11 @@ export function TemplateZoneConfigurator({
 
     return zones;
   }, [selectedPage, templateConfig]);
+  
+  // Mettre à jour la ref des zones quand elles changent
+  useEffect(() => {
+    pageZonesRef.current = pageZones;
+  }, [pageZones]);
 
   // Fonction pour dessiner une zone
   const drawZone = useCallback((
@@ -221,6 +225,11 @@ export function TemplateZoneConfigurator({
       drawZone(ctx, drawingZone, label, getZoneColor(zoneType), 1);
     }
   }, [drawZone, getZoneColor]);
+  
+  // Mettre à jour la ref de drawAllZones quand elle change
+  useEffect(() => {
+    drawAllZonesRef.current = drawAllZones;
+  }, [drawAllZones]);
 
 
   // Charger l'image
