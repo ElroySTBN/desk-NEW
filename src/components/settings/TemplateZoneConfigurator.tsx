@@ -207,18 +207,41 @@ export function TemplateZoneConfigurator({
         const img = new Image();
         
         img.onload = () => {
-          console.log('Image chargée:', img.width, img.height);
+          console.log('Image chargée:', img.naturalWidth, img.naturalHeight);
+          
+          // Sauvegarder l'image dans la ref
+          imageRef.current = img;
+          
           if (objectUrl) {
             URL.revokeObjectURL(objectUrl);
           }
-          imageRef.current = img;
-          const canvas = canvasRef.current;
-          if (!canvas) {
-            setImageError('Canvas non disponible');
-            setImageLoading(false);
-            return;
-          }
+          
+          // Utiliser requestAnimationFrame pour s'assurer que le canvas est monté
+          requestAnimationFrame(() => {
+            const canvas = canvasRef.current;
+            if (!canvas) {
+              console.warn('Canvas non disponible après requestAnimationFrame, nouvelle tentative...');
+              // Réessayer après un court délai
+              setTimeout(() => {
+                const canvasRetry = canvasRef.current;
+                if (!canvasRetry) {
+                  console.error('Canvas toujours non disponible');
+                  setImageError('Canvas non disponible. Veuillez rafraîchir la page.');
+                  setImageLoading(false);
+                  return;
+                }
+                initializeCanvasWithImage(canvasRetry, img);
+              }, 100);
+              return;
+            }
 
+            console.log('Canvas disponible, initialisation...');
+            initializeCanvasWithImage(canvas, img);
+          });
+        };
+        
+        // Fonction helper pour initialiser le canvas avec l'image
+        const initializeCanvasWithImage = (canvas: HTMLCanvasElement, img: HTMLImageElement) => {
           // Calculer l'échelle pour que l'image rentre dans le canvas
           const maxWidth = 800;
           const maxHeight = 600;
@@ -236,8 +259,7 @@ export function TemplateZoneConfigurator({
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
-            // Dessiner les zones existantes (sans dépendre de drawZonesOnCanvas pour éviter les boucles)
-            // On va dessiner directement ici pour éviter les dépendances circulaires
+            // Dessiner les zones existantes
             if (selectedPage === 1) {
               if (templateConfig.logo_placement) {
                 drawZone(ctx, templateConfig.logo_placement, 'Logo', '#10b981', newScale);
@@ -285,15 +307,37 @@ export function TemplateZoneConfigurator({
         const img = new Image();
         
         img.onload = () => {
-          console.log('Image chargée (fallback):', img.width, img.height);
+          console.log('Image chargée (fallback):', img.naturalWidth, img.naturalHeight);
+          
+          // Sauvegarder l'image dans la ref
           imageRef.current = img;
-          const canvas = canvasRef.current;
-          if (!canvas) {
-            setImageError('Canvas non disponible');
-            setImageLoading(false);
-            return;
-          }
+          
+          // Utiliser requestAnimationFrame pour s'assurer que le canvas est monté
+          requestAnimationFrame(() => {
+            const canvas = canvasRef.current;
+            if (!canvas) {
+              console.warn('Canvas non disponible (fallback) après requestAnimationFrame, nouvelle tentative...');
+              // Réessayer après un court délai
+              setTimeout(() => {
+                const canvasRetry = canvasRef.current;
+                if (!canvasRetry) {
+                  console.error('Canvas toujours non disponible (fallback)');
+                  setImageError('Canvas non disponible. Veuillez rafraîchir la page.');
+                  setImageLoading(false);
+                  return;
+                }
+                initializeCanvasWithImageFallback(canvasRetry, img);
+              }, 100);
+              return;
+            }
 
+            console.log('Canvas disponible (fallback), initialisation...');
+            initializeCanvasWithImageFallback(canvas, img);
+          });
+        };
+        
+        // Fonction helper pour initialiser le canvas avec l'image (fallback)
+        const initializeCanvasWithImageFallback = (canvas: HTMLCanvasElement, img: HTMLImageElement) => {
           const maxWidth = 800;
           const maxHeight = 600;
           const scaleX = maxWidth / img.naturalWidth;
@@ -629,14 +673,7 @@ export function TemplateZoneConfigurator({
           </div>
 
           {/* Canvas pour dessiner les zones */}
-          {imageLoading ? (
-            <div className="flex items-center justify-center h-96 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <div className="text-center space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                <p className="text-sm text-muted-foreground">Chargement de l'image...</p>
-              </div>
-            </div>
-          ) : imageError ? (
+          {imageError ? (
             <div className="p-8 text-center">
               <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                 <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-2">
@@ -646,7 +683,15 @@ export function TemplateZoneConfigurator({
               </div>
             </div>
           ) : (
-            <div className="border rounded-lg overflow-auto max-h-[600px] bg-gray-50 dark:bg-gray-900">
+            <div className="border rounded-lg overflow-auto max-h-[600px] bg-gray-50 dark:bg-gray-900 relative">
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 dark:bg-gray-800/80 z-10">
+                  <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-sm text-muted-foreground">Chargement de l'image...</p>
+                  </div>
+                </div>
+              )}
               <canvas
                 ref={canvasRef}
                 onMouseDown={handleCanvasMouseDown}
@@ -654,7 +699,7 @@ export function TemplateZoneConfigurator({
                 onMouseUp={handleCanvasMouseUp}
                 onMouseLeave={handleCanvasMouseUp}
                 className="cursor-crosshair"
-                style={{ display: 'block' }}
+                style={{ display: 'block', width: '100%', height: 'auto' }}
               />
             </div>
           )}
