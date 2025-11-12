@@ -9,7 +9,7 @@ import { Page5_Itineraire } from '@/components/reports/gbp/pdf/Page5_Itineraire'
 // Page6_Monthly supprimée - rapport mensuel uniquement (5 pages)
 import { generateCanvaReportPDF } from './canvaReportGenerator';
 import type { GBPTemplateConfig } from './gbpTemplateConfig';
-import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig } from './gbpTemplateConfig';
+import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig, cleanTemplateConfig } from './gbpTemplateConfig';
 
 /**
  * Récupère le template Canva configuré pour l'utilisateur
@@ -33,50 +33,35 @@ async function getCanvaTemplate(): Promise<GBPTemplateConfig | null> {
   // Migrer depuis l'ancien format si nécessaire
   const templateConfig = template.template_config || {};
   
-  // Si l'ancien format existe (template_base_url), le convertir
-  if (template.template_base_url && !templateConfig.pages) {
-    // Migration depuis l'ancien format
-    const config: GBPTemplateConfig = {
-      pages: [template.template_base_url], // Utiliser l'URL comme première page
-      logo_placement: templateConfig.logo_placement,
-      variables: templateConfig.variable_zones || templateConfig.variables || {},
-      screenshot_placements: templateConfig.screenshot_placements || DEFAULT_TEMPLATE_CONFIG.screenshot_placements,
-      text_placements: templateConfig.text_placements || DEFAULT_TEMPLATE_CONFIG.text_placements,
-      text_templates: templateConfig.text_templates || {},
-      ocr_zones: templateConfig.ocr_zones || DEFAULT_TEMPLATE_CONFIG.ocr_zones,
-    };
-    
-    // Valider la configuration
-    const validation = validateTemplateConfig(config);
-    if (!validation.valid) {
-      console.warn('Configuration de template invalide:', validation.errors);
-      return null;
-    }
-    
-    return config;
-  }
-
-  // Nouveau format : utiliser directement template_config
-  const config: GBPTemplateConfig = {
+  // Construire la configuration en utilisant les valeurs disponibles
+  const partialConfig: Partial<GBPTemplateConfig> = {
     pages: templateConfig.pages || (template.template_base_url ? [template.template_base_url] : []),
     logo_placement: templateConfig.logo_placement,
     variables: templateConfig.variables || templateConfig.variable_zones || {},
-    screenshot_placements: templateConfig.screenshot_placements || DEFAULT_TEMPLATE_CONFIG.screenshot_placements,
-    text_placements: templateConfig.text_placements || DEFAULT_TEMPLATE_CONFIG.text_placements,
+    screenshot_placements: templateConfig.screenshot_placements,
+    text_placements: templateConfig.text_placements,
     text_templates: templateConfig.text_templates || {},
-    ocr_zones: templateConfig.ocr_zones || DEFAULT_TEMPLATE_CONFIG.ocr_zones,
+    ocr_zones: templateConfig.ocr_zones,
   };
 
-  // Valider la configuration
-  const validation = validateTemplateConfig(config);
-  if (!validation.valid) {
-    console.warn('Configuration de template invalide:', validation.errors);
+  // Nettoyer la configuration (utilise les valeurs par défaut pour les propriétés manquantes)
+  const config = cleanTemplateConfig(partialConfig);
+
+  // Vérifier qu'au moins une page existe (validation principale pour la génération)
+  if (config.pages.length === 0) {
+    console.warn('Template Canva non disponible : aucune page configurée');
     return null;
   }
 
-  // Vérifier qu'au moins une page existe
-  if (config.pages.length === 0) {
-    return null;
+  // Valider la configuration (sans exiger les pages, car déjà vérifié)
+  const validation = validateTemplateConfig(config);
+  if (!validation.valid) {
+    console.warn('Configuration de template invalide:', validation.errors);
+    // Ne pas bloquer la génération si seulement les pages sont manquantes
+    // (cela devrait déjà être géré par la vérification ci-dessus)
+    if (validation.errors.some(e => e.includes('page de template'))) {
+      return null;
+    }
   }
 
   return config;

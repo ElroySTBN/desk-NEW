@@ -319,10 +319,12 @@ export function validateTemplateConfig(config: Partial<GBPTemplateConfig>): {
   // Nettoyer la configuration avant validation
   const cleanedConfig = cleanTemplateConfig(config);
   
-  // Valider les pages : doit avoir au moins une page (pas forcément 5 pour l'instant)
-  if (!cleanedConfig.pages || cleanedConfig.pages.length === 0) {
-    errors.push('Au moins une page de template est requise');
-  }
+  // Ne pas valider les pages lors de la validation de base
+  // Les pages peuvent être uploadées plus tard
+  // La validation des pages se fera lors de la génération du rapport (dans getCanvaTemplate)
+  // if (!cleanedConfig.pages || cleanedConfig.pages.length === 0) {
+  //   errors.push('Au moins une page de template est requise');
+  // }
   
   // Valider le logo_placement seulement s'il est défini
   if (cleanedConfig.logo_placement) {

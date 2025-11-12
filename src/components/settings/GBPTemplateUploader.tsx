@@ -62,10 +62,45 @@ export function GBPTemplateUploader({ template, onTemplateUpdated }: GBPTemplate
         .from('gbp-templates')
         .getPublicUrl(filePath);
 
+      // Récupérer le template actuel pour mettre à jour template_config.pages
+      const { data: currentTemplate, error: fetchError } = await supabase
+        .from('gbp_report_templates')
+        .select('template_config')
+        .eq('id', template.id)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Erreur lors de la récupération du template: ${fetchError.message}`);
+      }
+
+      // Mettre à jour template_config.pages avec la nouvelle URL
+      const currentConfig = currentTemplate?.template_config || {};
+      const currentPages = currentConfig.pages || [];
+      
+      // Si pages est vide ou si c'est un seul fichier, remplacer par la nouvelle URL
+      // Sinon, ajouter la nouvelle URL à la fin (pour support multi-pages)
+      let updatedPages: string[];
+      if (currentPages.length === 0 || currentPages.length === 1) {
+        // Remplacer la seule page ou ajouter la première page
+        updatedPages = [publicUrl];
+      } else {
+        // Pour l'instant, on remplace toutes les pages par la nouvelle URL
+        // TODO: Implémenter un système pour uploader plusieurs pages
+        updatedPages = [publicUrl];
+      }
+
+      const updatedConfig = {
+        ...currentConfig,
+        pages: updatedPages,
+      };
+
       // Mettre à jour le template dans la base de données
       const { error: updateError } = await supabase
         .from('gbp_report_templates')
-        .update({ template_base_url: publicUrl })
+        .update({ 
+          template_base_url: publicUrl,
+          template_config: updatedConfig,
+        })
         .eq('id', template.id);
 
       if (updateError) {
@@ -113,10 +148,36 @@ export function GBPTemplateUploader({ template, onTemplateUpdated }: GBPTemplate
         console.error('Erreur lors de la suppression:', deleteError);
       }
 
+      // Récupérer le template actuel pour mettre à jour template_config.pages
+      const { data: currentTemplate, error: fetchError } = await supabase
+        .from('gbp_report_templates')
+        .select('template_config')
+        .eq('id', template.id)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Erreur lors de la récupération du template: ${fetchError.message}`);
+      }
+
+      // Mettre à jour template_config.pages pour retirer l'URL supprimée
+      const currentConfig = currentTemplate?.template_config || {};
+      const currentPages = currentConfig.pages || [];
+      
+      // Retirer l'URL supprimée du tableau pages
+      const updatedPages = currentPages.filter((url: string) => url !== templateUrl);
+
+      const updatedConfig = {
+        ...currentConfig,
+        pages: updatedPages,
+      };
+
       // Mettre à jour le template dans la base de données
       const { error: updateError } = await supabase
         .from('gbp_report_templates')
-        .update({ template_base_url: null })
+        .update({ 
+          template_base_url: null,
+          template_config: updatedConfig,
+        })
         .eq('id', template.id);
 
       if (updateError) {

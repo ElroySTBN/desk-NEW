@@ -101,12 +101,10 @@ export function GBPReportTemplatesManager() {
       }
 
       // Créer un template par défaut avec la structure simplifiée
+      // Utiliser DEFAULT_TEMPLATE_CONFIG qui contient toutes les valeurs par défaut
       const defaultConfig: GBPTemplateConfig = {
+        ...DEFAULT_TEMPLATE_CONFIG,
         pages: [], // Pages à uploader par l'utilisateur
-        variables: {},
-        screenshot_placements: {},
-        text_templates: {},
-        ocr_zones: DEFAULT_OCR_ZONES,
       };
 
       const { error } = await supabase
@@ -136,6 +134,29 @@ export function GBPReportTemplatesManager() {
     }
   };
 
+  // Fonction utilitaire pour charger la configuration d'un template
+  const loadTemplateConfig = (template: GBPReportTemplate): GBPTemplateConfig => {
+    if (template.template_config) {
+      // Migrer depuis l'ancien format si nécessaire
+      const config = template.template_config as any;
+      return {
+        pages: config.pages || (template.template_base_url ? [template.template_base_url] : []),
+        logo_placement: config.logo_placement,
+        variables: config.variables || config.variable_zones || {},
+        screenshot_placements: config.screenshot_placements || DEFAULT_TEMPLATE_CONFIG.screenshot_placements,
+        text_placements: config.text_placements || DEFAULT_TEMPLATE_CONFIG.text_placements,
+        text_templates: config.text_templates || {},
+        ocr_zones: config.ocr_zones || DEFAULT_TEMPLATE_CONFIG.ocr_zones,
+      };
+    } else {
+      // Si pas de template_config, créer une config avec template_base_url si disponible
+      return {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        pages: template.template_base_url ? [template.template_base_url] : [],
+      };
+    }
+  };
+
   const handleEdit = (template: GBPReportTemplate) => {
     setEditingTemplate(template);
     setFormData({
@@ -145,20 +166,7 @@ export function GBPReportTemplatesManager() {
     });
     
     // Charger la configuration du template (nouveau format simplifié)
-    if (template.template_config) {
-      // Migrer depuis l'ancien format si nécessaire
-      const config = template.template_config as any;
-      const simplifiedConfig: GBPTemplateConfig = {
-        pages: config.pages || (template.template_base_url ? [template.template_base_url] : []),
-        variables: config.variables || config.variable_zones || {},
-        screenshot_placements: config.screenshot_placements || {},
-        text_templates: config.text_templates || {},
-        ocr_zones: config.ocr_zones || DEFAULT_OCR_ZONES,
-      };
-      setTemplateConfig(simplifiedConfig);
-    } else {
-      setTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
-    }
+    setTemplateConfig(loadTemplateConfig(template));
     
     setShowEditDialog(true);
   };
@@ -278,6 +286,15 @@ export function GBPReportTemplatesManager() {
             variant: 'destructive',
           });
           return;
+        }
+
+        // Avertir si pages est vide, mais permettre la sauvegarde
+        if (!cleanedConfig.pages || cleanedConfig.pages.length === 0) {
+          toast({
+            title: 'Avertissement',
+            description: 'Le template n\'a pas de pages. Vous pourrez les uploader plus tard. Le rapport utilisera le template par défaut jusqu\'à ce que des pages soient ajoutées.',
+            variant: 'default',
+          });
         }
 
         const { error } = await supabase
@@ -488,7 +505,23 @@ export function GBPReportTemplatesManager() {
               {editingTemplate && (
                 <GBPTemplateUploader
                   template={editingTemplate}
-                  onTemplateUpdated={fetchTemplates}
+                  onTemplateUpdated={async () => {
+                    // Rafraîchir la liste des templates
+                    await fetchTemplates();
+                    // Recharger le template actuel pour mettre à jour l'état local
+                    if (editingTemplate) {
+                      const { data: updatedTemplate } = await supabase
+                        .from('gbp_report_templates' as any)
+                        .select('*')
+                        .eq('id', editingTemplate.id)
+                        .single() as any;
+                      if (updatedTemplate) {
+                        // Mettre à jour editingTemplate et templateConfig
+                        setEditingTemplate(updatedTemplate);
+                        setTemplateConfig(loadTemplateConfig(updatedTemplate));
+                      }
+                    }
+                  }}
                 />
               )}
             </TabsContent>
