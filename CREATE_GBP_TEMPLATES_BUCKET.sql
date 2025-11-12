@@ -1,5 +1,5 @@
--- Migration pour créer le bucket de stockage des templates GBP
--- Date: 2025-01-04
+-- Script SQL pour créer le bucket gbp-templates dans Supabase Storage
+-- À exécuter dans l'éditeur SQL de Supabase Dashboard
 
 -- Créer le bucket gbp-templates s'il n'existe pas
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
