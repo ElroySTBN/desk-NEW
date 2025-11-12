@@ -208,18 +208,14 @@ export function getVariableValue(
  * Nettoie une configuration de template GBP en supprimant les objets partiellement définis
  */
 export function cleanTemplateConfig(config: Partial<GBPTemplateConfig>): GBPTemplateConfig {
-  // D'abord nettoyer la configuration de base
+  // D'abord nettoyer la configuration de base (cela nettoie aussi les variables)
   const baseCleaned = cleanBaseTemplateConfig(config);
   
-  const cleaned: GBPTemplateConfig = {
-    ...baseCleaned,
-    screenshot_placements: config.screenshot_placements || DEFAULT_TEMPLATE_CONFIG.screenshot_placements,
-    text_placements: config.text_placements || DEFAULT_TEMPLATE_CONFIG.text_placements,
-    text_templates: config.text_templates || {},
-    ocr_zones: config.ocr_zones || DEFAULT_TEMPLATE_CONFIG.ocr_zones,
-  };
-
-  // Nettoyer le logo_placement : ne garder que si complètement configuré
+  // Obtenir le nombre de pages disponibles
+  const numPages = baseCleaned.pages.length;
+  
+  // Nettoyer le logo_placement : ne garder que si complètement configuré ET que la page existe
+  let cleanedLogoPlacement: LogoPlacement | undefined = undefined;
   if (config.logo_placement) {
     const logo = config.logo_placement;
     if (logo.page !== undefined &&
@@ -227,39 +223,93 @@ export function cleanTemplateConfig(config: Partial<GBPTemplateConfig>): GBPTemp
         logo.y !== undefined &&
         logo.width !== undefined &&
         logo.height !== undefined) {
-      cleaned.logo_placement = logo;
-    } else {
-      cleaned.logo_placement = undefined;
-    }
-  }
-
-  // Nettoyer les placements de screenshots : ne garder que ceux qui sont complètement configurés
-  if (config.screenshot_placements) {
-    for (const [screenshotType, placement] of Object.entries(config.screenshot_placements)) {
-      if (placement &&
-          placement.page !== undefined &&
-          placement.x !== undefined &&
-          placement.y !== undefined &&
-          placement.width !== undefined &&
-          placement.height !== undefined) {
-        cleaned.screenshot_placements[screenshotType as keyof typeof cleaned.screenshot_placements] = placement;
+      // Vérifier que la page existe
+      if (numPages === 0 || logo.page <= numPages) {
+        cleanedLogoPlacement = logo;
       }
     }
   }
 
-  // Nettoyer les placements de textes : ne garder que ceux qui sont complètement configurés
-  if (config.text_placements) {
-    for (const [category, placement] of Object.entries(config.text_placements)) {
-      if (placement &&
-          placement.page !== undefined &&
-          placement.x !== undefined &&
-          placement.y !== undefined &&
-          placement.width !== undefined &&
-          placement.height !== undefined) {
-        cleaned.text_placements[category as keyof typeof cleaned.text_placements] = placement;
+  // Nettoyer les placements de screenshots : ne garder que ceux qui sont complètement configurés ET que la page existe
+  const categories: Array<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire'> = ['vue_ensemble', 'appels', 'clics_web', 'itineraire'];
+  const cleanedScreenshotPlacements: Record<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire', ScreenshotPlacement> = {
+    vue_ensemble: DEFAULT_TEMPLATE_CONFIG.screenshot_placements.vue_ensemble,
+    appels: DEFAULT_TEMPLATE_CONFIG.screenshot_placements.appels,
+    clics_web: DEFAULT_TEMPLATE_CONFIG.screenshot_placements.clics_web,
+    itineraire: DEFAULT_TEMPLATE_CONFIG.screenshot_placements.itineraire,
+  };
+  
+  for (const category of categories) {
+    const placement = config.screenshot_placements?.[category];
+    if (placement &&
+        placement.page !== undefined &&
+        placement.x !== undefined &&
+        placement.y !== undefined &&
+        placement.width !== undefined &&
+        placement.height !== undefined) {
+      // Vérifier que la page existe
+      if (numPages === 0 || placement.page <= numPages) {
+        cleanedScreenshotPlacements[category] = placement;
+      } else {
+        // Garder la valeur par défaut si la page n'existe pas
+        // (ne pas supprimer, car le type exige toutes les clés)
       }
     }
+    // Sinon, on garde la valeur par défaut
   }
+
+  // Nettoyer les placements de textes : ne garder que ceux qui sont complètement configurés ET que la page existe
+  const cleanedTextPlacements: Record<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire', TextPlacement> = {
+    vue_ensemble: DEFAULT_TEMPLATE_CONFIG.text_placements.vue_ensemble,
+    appels: DEFAULT_TEMPLATE_CONFIG.text_placements.appels,
+    clics_web: DEFAULT_TEMPLATE_CONFIG.text_placements.clics_web,
+    itineraire: DEFAULT_TEMPLATE_CONFIG.text_placements.itineraire,
+  };
+  
+  for (const category of categories) {
+    const placement = config.text_placements?.[category];
+    if (placement &&
+        placement.page !== undefined &&
+        placement.x !== undefined &&
+        placement.y !== undefined &&
+        placement.width !== undefined &&
+        placement.height !== undefined) {
+      // Vérifier que la page existe
+      if (numPages === 0 || placement.page <= numPages) {
+        cleanedTextPlacements[category] = placement;
+      }
+      // Sinon, on garde la valeur par défaut
+    }
+    // Sinon, on garde la valeur par défaut
+  }
+
+  // Nettoyer les zones OCR : ne garder que celles dont les pages existent
+  // Les zones OCR correspondent aux catégories : vue_ensemble (page 2), appels (page 3), clics_web (page 4), itineraire (page 5)
+  const expectedPages = [2, 3, 4, 5];
+  const cleanedOcrZones = { ...DEFAULT_TEMPLATE_CONFIG.ocr_zones };
+  
+  for (let i = 0; i < categories.length; i++) {
+    const category = categories[i];
+    const expectedPage = expectedPages[i];
+    
+    // Si la page attendue n'existe pas, garder la valeur par défaut (ne pas supprimer car le type l'exige)
+    if (numPages > 0 && expectedPage > numPages) {
+      // Garder la valeur par défaut pour cette zone OCR
+      // (ne pas supprimer, car le type exige toutes les clés)
+    } else if (config.ocr_zones?.[category]) {
+      // Garder la zone OCR si elle existe dans la config et que la page existe
+      cleanedOcrZones[category] = config.ocr_zones[category];
+    }
+  }
+
+  const cleaned: GBPTemplateConfig = {
+    ...baseCleaned,
+    logo_placement: cleanedLogoPlacement,
+    screenshot_placements: cleanedScreenshotPlacements,
+    text_placements: cleanedTextPlacements,
+    text_templates: config.text_templates || {},
+    ocr_zones: cleanedOcrZones,
+  };
 
   return cleaned;
 }
@@ -297,58 +347,89 @@ export function validateTemplateConfig(config: Partial<GBPTemplateConfig>): {
     }
   }
   
-  // Valider les placements de screenshots seulement s'ils sont définis
+  // Valider les placements de screenshots seulement s'ils sont définis et configurés par l'utilisateur
   const categories: Array<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire'> = ['vue_ensemble', 'appels', 'clics_web', 'itineraire'];
   const expectedPages = [2, 3, 4, 5];
+  const defaultScreenshotPlacements = DEFAULT_TEMPLATE_CONFIG.screenshot_placements;
+  const defaultTextPlacements = DEFAULT_TEMPLATE_CONFIG.text_placements;
   
   for (let i = 0; i < categories.length; i++) {
     const category = categories[i];
     const expectedPage = expectedPages[i];
     const placement = cleanedConfig.screenshot_placements[category];
+    const defaultPlacement = defaultScreenshotPlacements[category];
     
     // Ne valider que si le placement existe
     if (placement) {
-      // Note: on n'impose plus que les screenshots soient sur des pages spécifiques
-      // On valide juste que la page existe si des pages sont configurées
-      if (placement.page !== undefined && cleanedConfig.pages.length > 0 && placement.page > cleanedConfig.pages.length) {
-        errors.push(`Screenshot ${category}: la page ${placement.page} n'existe pas (${cleanedConfig.pages.length} pages disponibles)`);
-      }
-      if (placement.x !== undefined && placement.y !== undefined) {
-        if (typeof placement.x !== 'number' || typeof placement.y !== 'number') {
-          errors.push(`Screenshot ${category}: coordonnées x et y doivent être des nombres`);
+      // Vérifier si c'est un placement personnalisé (différent de la valeur par défaut)
+      const isDefaultPlacement = placement.page === defaultPlacement.page &&
+                                  placement.x === defaultPlacement.x &&
+                                  placement.y === defaultPlacement.y &&
+                                  placement.width === defaultPlacement.width &&
+                                  placement.height === defaultPlacement.height;
+      
+      // Si c'est un placement personnalisé ET que la page n'existe pas, générer une erreur
+      // Si c'est la valeur par défaut mais que la page n'existe pas, ignorer (sera ignoré lors de la génération)
+      if (!isDefaultPlacement) {
+        // Valider que la page existe si des pages sont configurées
+        if (placement.page !== undefined && cleanedConfig.pages.length > 0 && placement.page > cleanedConfig.pages.length) {
+          errors.push(`Screenshot ${category}: la page ${placement.page} n'existe pas (${cleanedConfig.pages.length} pages disponibles)`);
+        }
+        // Valider les coordonnées
+        if (placement.x !== undefined && placement.y !== undefined) {
+          if (typeof placement.x !== 'number' || typeof placement.y !== 'number') {
+            errors.push(`Screenshot ${category}: coordonnées x et y doivent être des nombres`);
+          }
+        }
+        if (placement.width !== undefined && placement.height !== undefined) {
+          if (typeof placement.width !== 'number' || typeof placement.height !== 'number' || placement.width <= 0 || placement.height <= 0) {
+            errors.push(`Screenshot ${category}: largeur et hauteur doivent être des nombres positifs`);
+          }
         }
       }
-      if (placement.width !== undefined && placement.height !== undefined) {
-        if (typeof placement.width !== 'number' || typeof placement.height !== 'number' || placement.width <= 0 || placement.height <= 0) {
-          errors.push(`Screenshot ${category}: largeur et hauteur doivent être des nombres positifs`);
-        }
-      }
+      // Si c'est la valeur par défaut, ne pas valider (sera ignoré si la page n'existe pas)
     }
   }
   
-  // Valider les placements de textes seulement s'ils sont définis
+  // Valider les placements de textes seulement s'ils sont définis et configurés par l'utilisateur
   for (let i = 0; i < categories.length; i++) {
     const category = categories[i];
     const expectedPage = expectedPages[i];
     const placement = cleanedConfig.text_placements[category];
+    const defaultPlacement = defaultTextPlacements[category];
     
     // Ne valider que si le placement existe
     if (placement) {
-      // Note: on n'impose plus que les textes soient sur des pages spécifiques
-      // On valide juste que la page existe si des pages sont configurées
-      if (placement.page !== undefined && cleanedConfig.pages.length > 0 && placement.page > cleanedConfig.pages.length) {
-        errors.push(`Texte ${category}: la page ${placement.page} n'existe pas (${cleanedConfig.pages.length} pages disponibles)`);
-      }
-      if (placement.x !== undefined && placement.y !== undefined) {
-        if (typeof placement.x !== 'number' || typeof placement.y !== 'number') {
-          errors.push(`Texte ${category}: coordonnées x et y doivent être des nombres`);
+      // Vérifier si c'est un placement personnalisé (différent de la valeur par défaut)
+      const isDefaultPlacement = placement.page === defaultPlacement.page &&
+                                  placement.x === defaultPlacement.x &&
+                                  placement.y === defaultPlacement.y &&
+                                  placement.width === defaultPlacement.width &&
+                                  placement.height === defaultPlacement.height &&
+                                  (placement.fontSize === defaultPlacement.fontSize || (!placement.fontSize && defaultPlacement.fontSize === 12)) &&
+                                  (placement.color === defaultPlacement.color || (!placement.color && defaultPlacement.color === '#000000')) &&
+                                  (placement.align === defaultPlacement.align || (!placement.align && defaultPlacement.align === 'left'));
+      
+      // Si c'est un placement personnalisé ET que la page n'existe pas, générer une erreur
+      // Si c'est la valeur par défaut mais que la page n'existe pas, ignorer (sera ignoré lors de la génération)
+      if (!isDefaultPlacement) {
+        // Valider que la page existe si des pages sont configurées
+        if (placement.page !== undefined && cleanedConfig.pages.length > 0 && placement.page > cleanedConfig.pages.length) {
+          errors.push(`Texte ${category}: la page ${placement.page} n'existe pas (${cleanedConfig.pages.length} pages disponibles)`);
+        }
+        // Valider les coordonnées
+        if (placement.x !== undefined && placement.y !== undefined) {
+          if (typeof placement.x !== 'number' || typeof placement.y !== 'number') {
+            errors.push(`Texte ${category}: coordonnées x et y doivent être des nombres`);
+          }
+        }
+        if (placement.width !== undefined && placement.height !== undefined) {
+          if (typeof placement.width !== 'number' || typeof placement.height !== 'number' || placement.width <= 0 || placement.height <= 0) {
+            errors.push(`Texte ${category}: largeur et hauteur doivent être des nombres positifs`);
+          }
         }
       }
-      if (placement.width !== undefined && placement.height !== undefined) {
-        if (typeof placement.width !== 'number' || typeof placement.height !== 'number' || placement.width <= 0 || placement.height <= 0) {
-          errors.push(`Texte ${category}: largeur et hauteur doivent être des nombres positifs`);
-        }
-      }
+      // Si c'est la valeur par défaut, ne pas valider (sera ignoré si la page n'existe pas)
     }
   }
   

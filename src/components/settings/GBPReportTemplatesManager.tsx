@@ -140,25 +140,29 @@ export function GBPReportTemplatesManager() {
 
   // Fonction utilitaire pour charger la configuration d'un template
   const loadTemplateConfig = (template: GBPReportTemplate): GBPTemplateConfig => {
+    let config: Partial<GBPTemplateConfig>;
+    
     if (template.template_config) {
       // Migrer depuis l'ancien format si nécessaire
-      const config = template.template_config as any;
-      return {
-        pages: config.pages || (template.template_base_url ? [template.template_base_url] : []),
-        logo_placement: config.logo_placement,
-        variables: config.variables || config.variable_zones || {},
-        screenshot_placements: config.screenshot_placements || DEFAULT_TEMPLATE_CONFIG.screenshot_placements,
-        text_placements: config.text_placements || DEFAULT_TEMPLATE_CONFIG.text_placements,
-        text_templates: config.text_templates || {},
-        ocr_zones: config.ocr_zones || DEFAULT_TEMPLATE_CONFIG.ocr_zones,
+      const templateConfig = template.template_config as any;
+      config = {
+        pages: templateConfig.pages || (template.template_base_url ? [template.template_base_url] : []),
+        logo_placement: templateConfig.logo_placement,
+        variables: templateConfig.variables || templateConfig.variable_zones || {},
+        screenshot_placements: templateConfig.screenshot_placements,
+        text_placements: templateConfig.text_placements,
+        text_templates: templateConfig.text_templates || {},
+        ocr_zones: templateConfig.ocr_zones,
       };
     } else {
       // Si pas de template_config, créer une config avec template_base_url si disponible
-      return {
-        ...DEFAULT_TEMPLATE_CONFIG,
+      config = {
         pages: template.template_base_url ? [template.template_base_url] : [],
       };
     }
+    
+    // Nettoyer la configuration pour supprimer automatiquement les placements pour les pages inexistantes
+    return cleanTemplateConfig(config);
   };
 
   const handleEdit = (template: GBPReportTemplate) => {
@@ -183,8 +187,10 @@ export function GBPReportTemplatesManager() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Nettoyer et valider la configuration
+      // Nettoyer la configuration (supprime automatiquement les placements pour les pages inexistantes)
       const cleanedConfig = cleanTemplateConfig(templateConfig);
+      
+      // Valider la configuration (ne génère plus d'erreurs pour les placements par défaut)
       const validation = validateTemplateConfig(cleanedConfig);
       if (!validation.valid) {
         toast({
@@ -201,6 +207,9 @@ export function GBPReportTemplatesManager() {
         .eq('id', editingTemplate.id);
 
       if (error) throw error;
+
+      // Mettre à jour l'état local avec la configuration nettoyée
+      setTemplateConfig(cleanedConfig);
 
       toast({
         title: '✅ Configuration sauvegardée',
@@ -281,8 +290,10 @@ export function GBPReportTemplatesManager() {
             .neq('id', editingTemplate.id);
         }
 
-        // Nettoyer et valider la configuration avant de sauvegarder
+        // Nettoyer la configuration (supprime automatiquement les placements pour les pages inexistantes)
         const cleanedConfig = cleanTemplateConfig(templateConfig);
+        
+        // Valider la configuration (ne génère plus d'erreurs pour les placements par défaut)
         const validation = validateTemplateConfig(cleanedConfig);
         if (!validation.valid) {
           toast({
@@ -292,6 +303,9 @@ export function GBPReportTemplatesManager() {
           });
           return;
         }
+
+        // Mettre à jour l'état local avec la configuration nettoyée
+        setTemplateConfig(cleanedConfig);
 
         // Avertir si pages est vide, mais permettre la sauvegarde
         if (!cleanedConfig.pages || cleanedConfig.pages.length === 0) {

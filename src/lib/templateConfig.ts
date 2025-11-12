@@ -113,9 +113,11 @@ export function cleanBaseTemplateConfig(config: Partial<BaseTemplateConfig>): Ba
     image_zones: config.image_zones || {},
   };
 
-  // Nettoyer les variables : ne garder que celles complètement configurées
+  // Nettoyer les variables : ne garder que celles complètement configurées ET que la page existe
   if (config.variables) {
     const cleanedVariables: Record<string, VariableConfig> = {};
+    const numPages = cleaned.pages.length;
+    
     for (const [key, variable] of Object.entries(config.variables)) {
       if (variable &&
           variable.page !== undefined &&
@@ -125,15 +127,21 @@ export function cleanBaseTemplateConfig(config: Partial<BaseTemplateConfig>): Ba
           variable.height !== undefined &&
           variable.variable &&
           variable.type) {
-        cleanedVariables[key] = variable;
+        // Vérifier que la page existe
+        if (numPages === 0 || variable.page <= numPages) {
+          cleanedVariables[key] = variable;
+        }
+        // Sinon, ne pas inclure la variable (page inexistante)
       }
     }
     cleaned.variables = cleanedVariables;
   }
 
-  // Nettoyer les zones de texte : ne garder que celles complètement configurées
+  // Nettoyer les zones de texte : ne garder que celles complètement configurées ET que la page existe
   if (config.text_zones) {
     const cleanedTextZones: Record<string, TextPlacement> = {};
+    const numPages = cleaned.pages.length;
+    
     for (const [key, zone] of Object.entries(config.text_zones)) {
       if (zone &&
           zone.page !== undefined &&
@@ -141,15 +149,21 @@ export function cleanBaseTemplateConfig(config: Partial<BaseTemplateConfig>): Ba
           zone.y !== undefined &&
           zone.width !== undefined &&
           zone.height !== undefined) {
-        cleanedTextZones[key] = zone;
+        // Vérifier que la page existe
+        if (numPages === 0 || zone.page <= numPages) {
+          cleanedTextZones[key] = zone;
+        }
+        // Sinon, ne pas inclure la zone (page inexistante)
       }
     }
     cleaned.text_zones = cleanedTextZones;
   }
 
-  // Nettoyer les zones d'images : ne garder que celles complètement configurées
+  // Nettoyer les zones d'images : ne garder que celles complètement configurées ET que la page existe
   if (config.image_zones) {
     const cleanedImageZones: Record<string, ImagePlacement> = {};
+    const numPages = cleaned.pages.length;
+    
     for (const [key, zone] of Object.entries(config.image_zones)) {
       if (zone &&
           zone.page !== undefined &&
@@ -157,7 +171,11 @@ export function cleanBaseTemplateConfig(config: Partial<BaseTemplateConfig>): Ba
           zone.y !== undefined &&
           zone.width !== undefined &&
           zone.height !== undefined) {
-        cleanedImageZones[key] = zone;
+        // Vérifier que la page existe
+        if (numPages === 0 || zone.page <= numPages) {
+          cleanedImageZones[key] = zone;
+        }
+        // Sinon, ne pas inclure la zone (page inexistante)
       }
     }
     cleaned.image_zones = cleanedImageZones;

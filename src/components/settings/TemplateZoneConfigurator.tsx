@@ -68,10 +68,19 @@ export function TemplateZoneConfigurator({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState<string | null>(null);
 
-  // Générer la liste des pages disponibles
+  // Générer la liste des pages disponibles (uniquement les pages qui existent)
   const availablePages = templateConfig.pages.length > 0 
     ? templateConfig.pages.map((_, index) => index + 1)
-    : [1, 2, 3, 4, 5]; // Pages par défaut pour compatibilité
+    : []; // Aucune page par défaut si aucune page n'est uploadée
+
+  // S'assurer que selectedPage est valide (ne dépasse pas le nombre de pages disponibles)
+  useEffect(() => {
+    if (availablePages.length > 0 && selectedPage > availablePages.length) {
+      setSelectedPage(availablePages[availablePages.length - 1]);
+    } else if (availablePages.length === 0 && selectedPage > 0) {
+      setSelectedPage(1);
+    }
+  }, [availablePages.length, selectedPage]);
 
   // Récupérer l'URL de l'image pour la page sélectionnée
   const currentPageUrl = templateConfig.pages.length === 0
@@ -94,7 +103,8 @@ export function TemplateZoneConfigurator({
     }
 
     // Zones spécifiques GBP (screenshots et textes)
-    if (page >= 2 && page <= 5) {
+    // Ne vérifier que si la page existe ET qu'elle est dans la plage 2-5
+    if (page >= 2 && page <= 5 && page <= templateConfig.pages.length) {
       const categoryIndex = page - 2;
       const category = CATEGORIES[categoryIndex];
       
@@ -572,8 +582,18 @@ export function TemplateZoneConfigurator({
       return;
     }
 
+    // Vérifier que la page sélectionnée existe
+    if (templateConfig.pages.length > 0 && selectedPage > templateConfig.pages.length) {
+      console.error(`Impossible de sauvegarder la zone : la page ${selectedPage} n'existe pas (${templateConfig.pages.length} pages disponibles)`);
+      return;
+    }
+
     if (selectedPage === 1 && selectedZoneType === 'logo') {
       // Logo sur page 1 - pas besoin de variable
+      // Vérifier que la page 1 existe
+      if (templateConfig.pages.length === 0 || selectedPage > templateConfig.pages.length) {
+        return;
+      }
       onConfigChange({
         logo_placement: {
           page: 1,
@@ -588,7 +608,7 @@ export function TemplateZoneConfigurator({
       return;
     }
 
-    if (selectedPage >= 2 && selectedPage <= 5) {
+    if (selectedPage >= 2 && selectedPage <= 5 && selectedPage <= templateConfig.pages.length) {
       // Zones spécifiques GBP (screenshots et textes)
       const categoryIndex = selectedPage - 2;
       const category = CATEGORIES[categoryIndex];
@@ -635,6 +655,10 @@ export function TemplateZoneConfigurator({
 
     // Zones génériques (text/image) - nécessitent une variable
     if ((selectedZoneType === 'text' || selectedZoneType === 'image') && selectedVariable) {
+      // Vérifier que la page existe
+      if (templateConfig.pages.length > 0 && selectedPage > templateConfig.pages.length) {
+        return;
+      }
       const variableConfig: VariableConfig = {
         page: selectedPage,
         x: zone.x,
@@ -853,7 +877,7 @@ export function TemplateZoneConfigurator({
                       </SelectItem>
                     </>
                   )}
-                  {selectedPage >= 2 && selectedPage <= 5 && (
+                  {selectedPage >= 2 && selectedPage <= 5 && selectedPage <= templateConfig.pages.length && (
                     <>
                       <SelectItem value="screenshot">
                         <div className="flex items-center gap-2">
