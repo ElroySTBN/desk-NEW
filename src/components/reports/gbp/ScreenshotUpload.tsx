@@ -11,7 +11,9 @@ interface ScreenshotUploadProps {
   icon: string;
   value: string | null;
   onChange: (file: File | null, previewUrl: string | null) => void;
+  onExtractOCR?: (file: File) => Promise<void>;
   required?: boolean;
+  extracting?: boolean;
 }
 
 export function ScreenshotUpload({
@@ -19,7 +21,9 @@ export function ScreenshotUpload({
   icon,
   value,
   onChange,
+  onExtractOCR,
   required = false,
+  extracting = false,
 }: ScreenshotUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -102,21 +106,46 @@ export function ScreenshotUpload({
         </Label>
 
         {value ? (
-          <div className="relative">
+          <div className="relative space-y-2">
             <img
               src={value}
               alt={label}
               className="w-full h-48 object-contain border rounded-lg"
             />
-            <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2"
-              onClick={handleRemove}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="absolute top-2 right-2 flex gap-2">
+              {onExtractOCR && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  onClick={async () => {
+                    if (value) {
+                      // Convertir base64 en File
+                      const response = await fetch(value);
+                      const blob = await response.blob();
+                      const file = new File([blob], 'screenshot.png', { type: 'image/png' });
+                      await onExtractOCR(file);
+                    }
+                  }}
+                  disabled={extracting}
+                  title="Extraire les métriques via OCR"
+                >
+                  {extracting ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  ) : (
+                    <ImageIcon className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                onClick={handleRemove}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         ) : (
           <div

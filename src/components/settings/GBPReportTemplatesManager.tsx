@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Save, Trash2, Edit, Upload } from 'lucide-react';
+import { Plus, Save, Trash2, Edit, Upload, Settings } from 'lucide-react';
 import { GBPTemplateUploader } from './GBPTemplateUploader';
+import { OCRZoneEditor } from '@/components/reports/gbp/OCRZoneEditor';
+import { DEFAULT_OCR_ZONES, type KPIZonesConfig } from '@/lib/kpiExtractor';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +53,8 @@ export function GBPReportTemplatesManager() {
     description: '',
     is_default: false,
   });
+  const [ocrZones, setOcrZones] = useState<KPIZonesConfig>(DEFAULT_OCR_ZONES);
+  const [selectedScreenshotType, setSelectedScreenshotType] = useState<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire'>('vue_ensemble');
 
   useEffect(() => {
     fetchTemplates();
@@ -181,7 +186,55 @@ export function GBPReportTemplatesManager() {
       description: template.description || '',
       is_default: template.is_default,
     });
+    // Charger les zones OCR si elles existent
+    if (template.template_config?.ocr_zones) {
+      setOcrZones(template.template_config.ocr_zones);
+    } else {
+      setOcrZones(DEFAULT_OCR_ZONES);
+    }
     setShowEditDialog(true);
+  };
+
+  const handleSaveOCRZones = async (zones: { current: any; previous: any }) => {
+    if (!editingTemplate) return;
+
+    const updatedZones = {
+      ...ocrZones,
+      [selectedScreenshotType]: zones,
+    };
+    setOcrZones(updatedZones);
+
+    // Sauvegarder dans la base de données
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const currentConfig = editingTemplate.template_config || {};
+      const updatedConfig = {
+        ...currentConfig,
+        ocr_zones: updatedZones,
+      };
+
+      const { error } = await supabase
+        .from('gbp_report_templates')
+        .update({ template_config: updatedConfig })
+        .eq('id', editingTemplate.id);
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Zones OCR sauvegardées',
+        description: 'Les zones OCR ont été enregistrées avec succès',
+      });
+
+      fetchTemplates();
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -354,15 +407,14 @@ export function GBPReportTemplatesManager() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6">
-            {editingTemplate && (
-              <GBPTemplateUploader
-                template={editingTemplate}
-                onTemplateUpdated={fetchTemplates}
-              />
-            )}
+          <Tabs defaultValue="general" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="general">Général</TabsTrigger>
+              <TabsTrigger value="template">Template</TabsTrigger>
+              <TabsTrigger value="ocr">Zones OCR</TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-4">
+            <TabsContent value="general" className="space-y-4">
               <div>
                 <Label htmlFor="name">Nom du template *</Label>
                 <Input
@@ -401,7 +453,53 @@ export function GBPReportTemplatesManager() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            </TabsContent>
+
+            <TabsContent value="template">
+              {editingTemplate && (
+                <GBPTemplateUploader
+                  template={editingTemplate}
+                  onTemplateUpdated={fetchTemplates}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="ocr" className="space-y-4">
+              <div>
+                <Label>Sélectionner le type de capture d'écran</Label>
+                <Select
+                  value={selectedScreenshotType}
+                  onValueChange={(value: any) => setSelectedScreenshotType(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vue_ensemble">Vue d'ensemble</SelectItem>
+                    <SelectItem value="appels">Appels téléphoniques</SelectItem>
+                    <SelectItem value="clics_web">Clics vers le site web</SelectItem>
+                    <SelectItem value="itineraire">Demandes d'itinéraire</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {editingTemplate && editingTemplate.template_base_url ? (
+                <OCRZoneEditor
+                  imageUrl={editingTemplate.template_base_url}
+                  screenshotType={selectedScreenshotType}
+                  initialZones={ocrZones[selectedScreenshotType]}
+                  onSave={handleSaveOCRZones}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Veuillez d'abord uploader un template pour configurer les zones OCR</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
 
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setShowEditDialog(false)}>

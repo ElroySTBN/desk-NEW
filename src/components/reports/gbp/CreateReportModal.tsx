@@ -12,6 +12,7 @@ import { ScreenshotUpload } from './ScreenshotUpload';
 import { TextTemplateSelector } from './TextTemplateSelector';
 import { generateAndSaveGBPReport, calculateEvolution } from '@/lib/gbpReportGenerator';
 import { sendGBPReportEmail } from '@/lib/emailService';
+import { extractKPIsFromScreenshot, DEFAULT_OCR_ZONES, type KPIZonesConfig } from '@/lib/kpiExtractor';
 import type { GBPReportData } from '@/types/gbp-reports';
 import { ChevronLeft, ChevronRight, Check, FileText } from 'lucide-react';
 
@@ -72,6 +73,20 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
   // Email
   const [sendEmail, setSendEmail] = useState(true);
   const [clientEmail, setClientEmail] = useState('');
+
+  // OCR
+  const [extractingOCR, setExtractingOCR] = useState<{
+    vue_ensemble: boolean;
+    appels: boolean;
+    clics_web: boolean;
+    itineraire: boolean;
+  }>({
+    vue_ensemble: false,
+    appels: false,
+    clics_web: false,
+    itineraire: false,
+  });
+  const [ocrZonesConfig, setOcrZonesConfig] = useState<KPIZonesConfig>(DEFAULT_OCR_ZONES);
 
   const handleReset = () => {
     setStep(1);
@@ -199,6 +214,68 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
       ...prev,
       [type]: previewUrl,
     }));
+  };
+
+  // Charger la configuration OCR depuis le template
+  useEffect(() => {
+    const loadOCRSettings = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: template } = await supabase
+          .from('gbp_report_templates')
+          .select('template_config')
+          .eq('user_id', user.id)
+          .eq('is_default', true)
+          .maybeSingle();
+
+        if (template?.template_config?.ocr_zones) {
+          setOcrZonesConfig(template.template_config.ocr_zones);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement de la configuration OCR:', error);
+      }
+    };
+
+    if (open) {
+      loadOCRSettings();
+    }
+  }, [open]);
+
+  // Fonction pour extraire les KPIs via OCR
+  const handleExtractOCR = async (
+    screenshotType: 'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire',
+    file: File
+  ) => {
+    setExtractingOCR(prev => ({ ...prev, [screenshotType]: true }));
+
+    try {
+      const extracted = await extractKPIsFromScreenshot(file, screenshotType, ocrZonesConfig);
+
+      // Mettre à jour les KPIs avec les valeurs extraites
+      setKpis(prev => ({
+        ...prev,
+        [screenshotType]: {
+          current: extracted.current || prev[screenshotType].current,
+          previous: extracted.previous || prev[screenshotType].previous,
+          analysis: prev[screenshotType].analysis,
+        },
+      }));
+
+      toast({
+        title: '✅ Extraction réussie',
+        description: `Current: ${extracted.current || 'N/A'}, Previous: ${extracted.previous || 'N/A'}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erreur OCR',
+        description: error.message || 'Erreur lors de l\'extraction des métriques',
+        variant: 'destructive',
+      });
+    } finally {
+      setExtractingOCR(prev => ({ ...prev, [screenshotType]: false }));
+    }
   };
 
   const validateStep = (): boolean => {
@@ -434,6 +511,8 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
                 icon="📊"
                 value={screenshots.vue_ensemble}
                 onChange={(file, url) => handleScreenshotChange('vue_ensemble', file, url)}
+                onExtractOCR={(file) => handleExtractOCR('vue_ensemble', file)}
+                extracting={extractingOCR.vue_ensemble}
                 required
               />
               <ScreenshotUpload
@@ -441,6 +520,8 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
                 icon="📞"
                 value={screenshots.appels}
                 onChange={(file, url) => handleScreenshotChange('appels', file, url)}
+                onExtractOCR={(file) => handleExtractOCR('appels', file)}
+                extracting={extractingOCR.appels}
                 required
               />
               <ScreenshotUpload
@@ -448,6 +529,8 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
                 icon="🌐"
                 value={screenshots.clics_web}
                 onChange={(file, url) => handleScreenshotChange('clics_web', file, url)}
+                onExtractOCR={(file) => handleExtractOCR('clics_web', file)}
+                extracting={extractingOCR.clics_web}
                 required
               />
               <ScreenshotUpload
@@ -455,6 +538,8 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
                 icon="📍"
                 value={screenshots.itineraire}
                 onChange={(file, url) => handleScreenshotChange('itineraire', file, url)}
+                onExtractOCR={(file) => handleExtractOCR('itineraire', file)}
+                extracting={extractingOCR.itineraire}
                 required
               />
             </div>

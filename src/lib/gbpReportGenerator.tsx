@@ -7,9 +7,44 @@ import { Page3_Appels } from '@/components/reports/gbp/pdf/Page3_Appels';
 import { Page4_ClicsWeb } from '@/components/reports/gbp/pdf/Page4_ClicsWeb';
 import { Page5_Itineraire } from '@/components/reports/gbp/pdf/Page5_Itineraire';
 import { Page6_Monthly } from '@/components/reports/gbp/pdf/Page6_Monthly';
+import { generateCanvaReportPDF, generateDefaultReportPDF, type TemplateConfig } from './canvaReportGenerator';
 
 /**
- * Génère un PDF de rapport GBP avec react-pdf/renderer
+ * Récupère le template Canva configuré pour l'utilisateur
+ */
+async function getCanvaTemplate(): Promise<TemplateConfig | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: template, error } = await supabase
+    .from('gbp_report_templates')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('is_default', true)
+    .maybeSingle();
+
+  if (error || !template || !template.template_base_url) {
+    return null;
+  }
+
+  // Déterminer le type de template
+  const templateType = template.template_base_url.endsWith('.pdf') ? 'pdf' : 'image';
+
+  // Construire la configuration du template
+  const config: TemplateConfig = {
+    template_base_url: template.template_base_url,
+    template_type: templateType,
+    pages: template.template_config?.pages || [{ type: 'default' }],
+    variable_zones: template.template_config?.variable_zones || {},
+    screenshot_placements: template.template_config?.screenshot_placements || {},
+  };
+
+  return config;
+}
+
+/**
+ * Génère un PDF de rapport GBP
+ * Utilise le template Canva si disponible, sinon utilise react-pdf
  */
 export async function generateGBPReportPDF(data: GBPReportData): Promise<Blob> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -17,7 +52,20 @@ export async function generateGBPReportPDF(data: GBPReportData): Promise<Blob> {
     throw new Error('User not authenticated');
   }
 
-  // Créer le document PDF avec toutes les pages
+  // Essayer de récupérer le template Canva
+  const canvaTemplate = await getCanvaTemplate();
+
+  if (canvaTemplate) {
+    // Utiliser le template Canva
+    try {
+      return await generateCanvaReportPDF(data, canvaTemplate);
+    } catch (error) {
+      console.error('Erreur lors de la génération avec le template Canva, fallback sur le template par défaut:', error);
+      // Fallback sur le template par défaut
+    }
+  }
+
+  // Utiliser le template par défaut (react-pdf)
   const pdfDoc = (
     <Document>
       <Page1_Cover client={data.client} />

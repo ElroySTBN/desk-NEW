@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Mail, FileText, Plus, Eye } from 'lucide-react';
+import { Download, Mail, FileText, Plus, Eye, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { CreateReportModal } from '@/components/reports/gbp/CreateReportModal';
 import { sendGBPReportEmail } from '@/lib/emailService';
@@ -29,11 +29,17 @@ interface GBPReport {
   };
 }
 
+const MONTHS = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
+
 const GBPReports = () => {
   const { toast } = useToast();
   const [reports, setReports] = useState<GBPReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [generatingMonthly, setGeneratingMonthly] = useState(false);
 
   useEffect(() => {
     fetchReports();
@@ -141,6 +147,85 @@ const GBPReports = () => {
     }
   };
 
+  const handleGenerateMonthlyReports = async () => {
+    setGeneratingMonthly(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Calculer le mois précédent
+      const now = new Date();
+      const previousMonth = subMonths(now, 1);
+      const monthIndex = previousMonth.getMonth();
+      const month = MONTHS[monthIndex];
+      const year = previousMonth.getFullYear();
+
+      // Récupérer tous les clients actifs
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, name, company, email, logo_url')
+        .eq('user_id', user.id)
+        .eq('statut', 'actif');
+
+      if (clientsError) throw clientsError;
+
+      if (!clients || clients.length === 0) {
+        toast({
+          title: 'Aucun client actif',
+          description: 'Aucun client actif trouvé pour générer les rapports',
+        });
+        return;
+      }
+
+      // Vérifier quels rapports existent déjà
+      const { data: existingReports } = await supabase
+        .from('rapports_gbp')
+        .select('client_id')
+        .eq('user_id', user.id)
+        .eq('mois', month)
+        .eq('annee', year)
+        .eq('type', 'mensuel');
+
+      const existingClientIds = new Set(existingReports?.map(r => r.client_id) || []);
+
+      // Filtrer les clients qui n'ont pas encore de rapport pour ce mois
+      const clientsToProcess = clients.filter(c => !existingClientIds.has(c.id));
+
+      if (clientsToProcess.length === 0) {
+        toast({
+          title: 'Rapports déjà générés',
+          description: `Tous les rapports mensuels pour ${month} ${year} ont déjà été générés`,
+        });
+        return;
+      }
+
+      toast({
+        title: 'Génération en cours',
+        description: `Génération des rapports mensuels pour ${clientsToProcess.length} client(s)...`,
+      });
+
+      // Note: Pour générer les rapports, l'utilisateur devra uploader les captures d'écran manuellement
+      // On ouvre simplement le modal pour chaque client
+      // Dans une implémentation complète, on pourrait automatiser si les captures sont déjà stockées
+      
+      toast({
+        title: '⚠️ Action manuelle requise',
+        description: `Veuillez générer manuellement les rapports pour ${clientsToProcess.length} client(s) pour ${month} ${year}. Les captures d'écran doivent être uploadées.`,
+      });
+
+      // Rafraîchir la liste
+      fetchReports();
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingMonthly(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -158,10 +243,22 @@ const GBPReports = () => {
             Rapports mensuels Google Business Profile
           </p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} size="lg" className="gap-2">
-          <Plus className="h-5 w-5" />
-          Générer un nouveau rapport
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleGenerateMonthlyReports} 
+            size="lg" 
+            variant="outline"
+            className="gap-2"
+            disabled={generatingMonthly}
+          >
+            <Calendar className="h-5 w-5" />
+            {generatingMonthly ? 'Génération...' : 'Générer rapports mensuels'}
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)} size="lg" className="gap-2">
+            <Plus className="h-5 w-5" />
+            Générer un nouveau rapport
+          </Button>
+        </div>
       </div>
 
       <Card>
