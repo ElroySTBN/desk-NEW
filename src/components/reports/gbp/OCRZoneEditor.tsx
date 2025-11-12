@@ -47,92 +47,18 @@ export function OCRZoneEditor({
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(true);
 
-  // Charger l'image et calculer l'échelle
-  useEffect(() => {
-    if (!imageUrl) {
-      setImageError('Aucune URL d\'image fournie');
-      setImageLoading(false);
-      return;
-    }
-
-    setImageLoading(true);
-    setImageError(null);
-    
-    const img = new Image();
-    
-    // Gérer les erreurs CORS en essayant sans crossOrigin d'abord
-    img.onload = () => {
-      imageRef.current = img;
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        setImageError('Canvas non disponible');
-        setImageLoading(false);
-        return;
-      }
-
-      // Calculer l'échelle pour que l'image rentre dans le canvas
-      const maxWidth = 800;
-      const maxHeight = 600;
-      const scaleX = maxWidth / img.width;
-      const scaleY = maxHeight / img.height;
-      const newScale = Math.min(scaleX, scaleY, 1);
-
-      setScale(newScale);
-      canvas.width = img.width * newScale;
-      canvas.height = img.height * newScale;
-
-      drawCanvas();
-      setImageLoading(false);
-    };
-    
-    img.onerror = (error) => {
-      console.error('Erreur de chargement de l\'image:', error);
-      setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible et que CORS est configuré.');
-      setImageLoading(false);
-    };
-    
-    // Essayer avec crossOrigin d'abord, puis sans si ça échoue
-    img.crossOrigin = 'anonymous';
-    img.src = imageUrl;
-  }, [imageUrl]);
-
-  const drawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const img = imageRef.current;
-    if (!canvas || !img) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Effacer le canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Dessiner l'image
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    // Dessiner les zones
-    if (zones.current) {
-      drawZone(ctx, zones.current, 'Current', '#10b981');
-    }
-    if (zones.previous) {
-      drawZone(ctx, zones.previous, 'Previous', '#3b82f6');
-    }
-  }, [zones, scale]);
-
-  useEffect(() => {
-    drawCanvas();
-  }, [drawCanvas]);
-
-  const drawZone = (
+  // Fonction pour dessiner une zone
+  const drawZone = useCallback((
     ctx: CanvasRenderingContext2D,
     zone: OCRZone,
     label: string,
-    color: string
+    color: string,
+    currentScale: number
   ) => {
-    const x = zone.x * scale;
-    const y = zone.y * scale;
-    const width = zone.width * scale;
-    const height = zone.height * scale;
+    const x = zone.x * currentScale;
+    const y = zone.y * currentScale;
+    const width = zone.width * currentScale;
+    const height = zone.height * currentScale;
 
     // Rectangle
     ctx.strokeStyle = color;
@@ -147,7 +73,153 @@ export function OCRZoneEditor({
     ctx.fillStyle = color;
     ctx.font = 'bold 14px Arial';
     ctx.fillText(label, x + 5, y + 20);
-  };
+  }, []);
+
+  // Fonction pour dessiner le canvas complet
+  const drawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    if (!canvas || !img) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Effacer le canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dessiner l'image
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // Dessiner les zones avec l'échelle actuelle
+    if (zones.current) {
+      drawZone(ctx, zones.current, 'Current', '#10b981', scale);
+    }
+    if (zones.previous) {
+      drawZone(ctx, zones.previous, 'Previous', '#3b82f6', scale);
+    }
+  }, [zones, scale, drawZone]);
+
+  // Redessiner quand les zones ou l'échelle changent
+  useEffect(() => {
+    if (!imageLoading && !imageError && imageRef.current) {
+      drawCanvas();
+    }
+  }, [zones, scale, drawCanvas, imageLoading, imageError]);
+
+  // Charger l'image et calculer l'échelle avec gestion CORS améliorée
+  useEffect(() => {
+    if (!imageUrl) {
+      setImageError('Aucune URL d\'image fournie');
+      setImageLoading(false);
+      return;
+    }
+
+    setImageLoading(true);
+    setImageError(null);
+    
+    // Utiliser fetch pour contourner les problèmes CORS
+    const loadImageWithFetch = async () => {
+      try {
+        // Essayer d'abord avec fetch pour contourner CORS
+        const response = await fetch(imageUrl, {
+          mode: 'cors',
+          credentials: 'omit',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to load image: ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        
+        const img = new Image();
+        
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          imageRef.current = img;
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            setImageError('Canvas non disponible');
+            setImageLoading(false);
+            return;
+          }
+
+          // Calculer l'échelle pour que l'image rentre dans le canvas
+          const maxWidth = 800;
+          const maxHeight = 600;
+          const scaleX = maxWidth / img.width;
+          const scaleY = maxHeight / img.height;
+          const newScale = Math.min(scaleX, scaleY, 1);
+
+          setScale(newScale);
+          canvas.width = img.width * newScale;
+          canvas.height = img.height * newScale;
+
+          // Dessiner immédiatement après avoir chargé l'image
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+          
+          setImageLoading(false);
+        };
+        
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          setImageError('Impossible de charger l\'image après téléchargement');
+          setImageLoading(false);
+        };
+        
+        img.src = objectUrl;
+      } catch (error) {
+        console.warn('Fetch failed, trying direct load:', error);
+        // Fallback : charger directement (peut échouer avec CORS)
+        const img = new Image();
+        
+        img.onload = () => {
+          imageRef.current = img;
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            setImageError('Canvas non disponible');
+            setImageLoading(false);
+            return;
+          }
+
+          const maxWidth = 800;
+          const maxHeight = 600;
+          const scaleX = maxWidth / img.width;
+          const scaleY = maxHeight / img.height;
+          const newScale = Math.min(scaleX, scaleY, 1);
+
+          setScale(newScale);
+          canvas.width = img.width * newScale;
+          canvas.height = img.height * newScale;
+
+          // Dessiner immédiatement après avoir chargé l'image
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+          
+          setImageLoading(false);
+        };
+        
+        img.onerror = () => {
+          console.error('Erreur de chargement de l\'image:', error);
+          setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible et que CORS est configuré.');
+          setImageLoading(false);
+        };
+        
+        img.crossOrigin = 'anonymous';
+        img.src = imageUrl;
+      }
+    };
+
+    loadImageWithFetch();
+  }, [imageUrl]);
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

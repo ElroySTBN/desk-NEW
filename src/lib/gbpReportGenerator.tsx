@@ -7,37 +7,73 @@ import { Page3_Appels } from '@/components/reports/gbp/pdf/Page3_Appels';
 import { Page4_ClicsWeb } from '@/components/reports/gbp/pdf/Page4_ClicsWeb';
 import { Page5_Itineraire } from '@/components/reports/gbp/pdf/Page5_Itineraire';
 import { Page6_Monthly } from '@/components/reports/gbp/pdf/Page6_Monthly';
-import { generateCanvaReportPDF, generateDefaultReportPDF, type TemplateConfig } from './canvaReportGenerator';
+import { generateCanvaReportPDF } from './canvaReportGenerator';
+import type { GBPTemplateConfig } from './gbpTemplateConfig';
+import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig } from './gbpTemplateConfig';
 
 /**
  * Récupère le template Canva configuré pour l'utilisateur
+ * Utilise la nouvelle configuration simplifiée
  */
-async function getCanvaTemplate(): Promise<TemplateConfig | null> {
+async function getCanvaTemplate(): Promise<GBPTemplateConfig | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
   const { data: template, error } = await supabase
-    .from('gbp_report_templates')
+    .from('gbp_report_templates' as any)
     .select('*')
     .eq('user_id', user.id)
     .eq('is_default', true)
-    .maybeSingle();
+    .maybeSingle() as { data: any; error: any };
 
-  if (error || !template || !template.template_base_url) {
+  if (error || !template) {
     return null;
   }
 
-  // Déterminer le type de template
-  const templateType = template.template_base_url.endsWith('.pdf') ? 'pdf' : 'image';
+  // Migrer depuis l'ancien format si nécessaire
+  const templateConfig = template.template_config || {};
+  
+  // Si l'ancien format existe (template_base_url), le convertir
+  if (template.template_base_url && !templateConfig.pages) {
+    // Migration depuis l'ancien format
+    const config: GBPTemplateConfig = {
+      pages: [template.template_base_url], // Utiliser l'URL comme première page
+      variables: templateConfig.variable_zones || templateConfig.variables || {},
+      screenshot_placements: templateConfig.screenshot_placements || {},
+      text_templates: templateConfig.text_templates || {},
+      ocr_zones: templateConfig.ocr_zones || {},
+    };
+    
+    // Valider la configuration
+    const validation = validateTemplateConfig(config);
+    if (!validation.valid) {
+      console.warn('Configuration de template invalide:', validation.errors);
+      return null;
+    }
+    
+    return config;
+  }
 
-  // Construire la configuration du template
-  const config: TemplateConfig = {
-    template_base_url: template.template_base_url,
-    template_type: templateType,
-    pages: template.template_config?.pages || [{ type: 'default' }],
-    variable_zones: template.template_config?.variable_zones || {},
-    screenshot_placements: template.template_config?.screenshot_placements || {},
+  // Nouveau format : utiliser directement template_config
+  const config: GBPTemplateConfig = {
+    pages: templateConfig.pages || (template.template_base_url ? [template.template_base_url] : []),
+    variables: templateConfig.variables || templateConfig.variable_zones || {},
+    screenshot_placements: templateConfig.screenshot_placements || {},
+    text_templates: templateConfig.text_templates || {},
+    ocr_zones: templateConfig.ocr_zones || {},
   };
+
+  // Valider la configuration
+  const validation = validateTemplateConfig(config);
+  if (!validation.valid) {
+    console.warn('Configuration de template invalide:', validation.errors);
+    return null;
+  }
+
+  // Vérifier qu'au moins une page existe
+  if (config.pages.length === 0) {
+    return null;
+  }
 
   return config;
 }
@@ -146,8 +182,8 @@ export async function generateAndSaveGBPReport(
   );
 
   // Maintenant insérer dans la base de données avec l'URL du PDF
-  const { data: reportRecord, error: insertError } = await supabase
-    .from('rapports_gbp')
+  const insertResult = await supabase
+    .from('rapports_gbp' as any)
     .insert({
       user_id: user.id,
       client_id: reportData.client.id,
@@ -166,11 +202,13 @@ export async function generateAndSaveGBPReport(
       created_by: user.id,
     })
     .select()
-    .single();
+    .single() as any;
 
-  if (insertError) {
-    throw new Error(`Erreur lors de l'enregistrement du rapport: ${insertError.message}`);
+  if (insertResult.error || !insertResult.data?.id) {
+    throw new Error(`Erreur lors de l'enregistrement du rapport: ${insertResult.error?.message || 'Aucun ID retourné'}`);
   }
+
+  const reportRecord = insertResult.data;
 
   // Renommer le fichier avec le vrai ID du rapport
   const finalFileName = `rapport-${reportRecord.id}.pdf`;
@@ -193,10 +231,12 @@ export async function generateAndSaveGBPReport(
       .from('gbp-reports')
       .getPublicUrl(finalFilePath);
 
-    await supabase
-      .from('rapports_gbp')
-      .update({ pdf_url: publicUrl })
-      .eq('id', reportRecord.id);
+    if (reportRecord && reportRecord.id) {
+      await supabase
+        .from('rapports_gbp' as any)
+        .update({ pdf_url: publicUrl })
+        .eq('id', reportRecord.id);
+    }
   }
 
   return pdfUrl;

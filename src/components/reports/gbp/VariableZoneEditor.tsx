@@ -92,7 +92,7 @@ export function VariableZoneEditor({
     }
   }, [zone, scale]);
 
-  // Charger l'image et calculer l'échelle
+  // Charger l'image et calculer l'échelle avec gestion CORS améliorée
   useEffect(() => {
     if (!imageUrl) {
       setImageError('Aucune URL d\'image fournie');
@@ -103,42 +103,107 @@ export function VariableZoneEditor({
     setImageLoading(true);
     setImageError(null);
     
-    const img = new Image();
-    
-    img.onload = () => {
-      imageRef.current = img;
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        setImageError('Canvas non disponible');
-        setImageLoading(false);
-        return;
+    // Utiliser fetch pour contourner les problèmes CORS
+    const loadImageWithFetch = async () => {
+      try {
+        // Essayer d'abord avec fetch pour contourner CORS
+        const response = await fetch(imageUrl, {
+          mode: 'cors',
+          credentials: 'omit',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to load image: ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        
+        const img = new Image();
+        
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          imageRef.current = img;
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            setImageError('Canvas non disponible');
+            setImageLoading(false);
+            return;
+          }
+
+          const maxWidth = 800;
+          const maxHeight = 600;
+          const scaleX = maxWidth / img.width;
+          const scaleY = maxHeight / img.height;
+          const newScale = Math.min(scaleX, scaleY, 1);
+
+          setScale(newScale);
+          canvas.width = img.width * newScale;
+          canvas.height = img.height * newScale;
+
+          // Dessiner immédiatement après avoir chargé l'image
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+          
+          setImageLoading(false);
+        };
+        
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          setImageError('Impossible de charger l\'image après téléchargement');
+          setImageLoading(false);
+        };
+        
+        img.src = objectUrl;
+      } catch (error) {
+        console.warn('Fetch failed, trying direct load:', error);
+        // Fallback : charger directement (peut échouer avec CORS)
+        const img = new Image();
+        
+        img.onload = () => {
+          imageRef.current = img;
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            setImageError('Canvas non disponible');
+            setImageLoading(false);
+            return;
+          }
+
+          const maxWidth = 800;
+          const maxHeight = 600;
+          const scaleX = maxWidth / img.width;
+          const scaleY = maxHeight / img.height;
+          const newScale = Math.min(scaleX, scaleY, 1);
+
+          setScale(newScale);
+          canvas.width = img.width * newScale;
+          canvas.height = img.height * newScale;
+
+          // Dessiner immédiatement après avoir chargé l'image
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+          
+          setImageLoading(false);
+        };
+        
+        img.onerror = () => {
+          setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible et que CORS est configuré.');
+          setImageLoading(false);
+        };
+        
+        img.crossOrigin = 'anonymous';
+        img.src = imageUrl;
       }
-
-      const maxWidth = 800;
-      const maxHeight = 600;
-      const scaleX = maxWidth / img.width;
-      const scaleY = maxHeight / img.height;
-      const newScale = Math.min(scaleX, scaleY, 1);
-
-      setScale(newScale);
-      canvas.width = img.width * newScale;
-      canvas.height = img.height * newScale;
-
-      // Utiliser requestAnimationFrame pour s'assurer que le canvas est prêt
-      requestAnimationFrame(() => {
-        drawCanvas();
-        setImageLoading(false);
-      });
     };
-    
-    img.onerror = () => {
-      setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible.');
-      setImageLoading(false);
-    };
-    
-    img.crossOrigin = 'anonymous';
-    img.src = imageUrl;
-  }, [imageUrl, drawCanvas]);
+
+    loadImageWithFetch();
+  }, [imageUrl]);
 
   useEffect(() => {
     if (!imageLoading && !imageError) {

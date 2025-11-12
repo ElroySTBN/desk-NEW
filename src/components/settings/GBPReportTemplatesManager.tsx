@@ -9,10 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Save, Trash2, Edit, Upload, Settings } from 'lucide-react';
 import { GBPTemplateUploader } from './GBPTemplateUploader';
-import { OCRZoneEditor } from '@/components/reports/gbp/OCRZoneEditor';
-import { VariableZoneEditor } from '@/components/reports/gbp/VariableZoneEditor';
-import { DEFAULT_OCR_ZONES, type KPIZonesConfig } from '@/lib/kpiExtractor';
-import type { VariableZone } from '@/lib/canvaReportGenerator';
+import { TextTemplateEditor } from './TextTemplateEditor';
+import { DEFAULT_OCR_ZONES } from '@/lib/kpiExtractor';
+import type { GBPTemplateConfig } from '@/lib/gbpTemplateConfig';
+import { DEFAULT_TEMPLATE_CONFIG, validateTemplateConfig } from '@/lib/gbpTemplateConfig';
 import {
   Dialog,
   DialogContent,
@@ -34,14 +34,7 @@ interface GBPReportTemplate {
   description?: string;
   is_default: boolean;
   template_base_url?: string | null;
-  template_config: {
-    pages?: Array<{
-      type: string;
-      elements: Array<any>;
-    }>;
-    kpi_placements?: Record<string, { page: number; position: { x: number; y: number } }>;
-    screenshot_placements?: Record<string, { page: number; position: { x: number; y: number } }>;
-  };
+  template_config: GBPTemplateConfig | any;
 }
 
 export function GBPReportTemplatesManager() {
@@ -55,11 +48,7 @@ export function GBPReportTemplatesManager() {
     description: '',
     is_default: false,
   });
-  const [ocrZones, setOcrZones] = useState<KPIZonesConfig>(DEFAULT_OCR_ZONES);
-  const [selectedScreenshotType, setSelectedScreenshotType] = useState<'vue_ensemble' | 'appels' | 'clics_web' | 'itineraire'>('vue_ensemble');
-  const [variableZones, setVariableZones] = useState<Record<string, VariableZone>>({});
-  const [selectedVariableZone, setSelectedVariableZone] = useState<string | null>(null);
-  const [selectedPage, setSelectedPage] = useState<number>(1);
+  const [templateConfig, setTemplateConfig] = useState<GBPTemplateConfig>(DEFAULT_TEMPLATE_CONFIG);
 
   useEffect(() => {
     fetchTemplates();
@@ -71,11 +60,11 @@ export function GBPReportTemplatesManager() {
       if (!user) return;
 
       const { data, error } = await supabase
-        .from('gbp_report_templates')
+        .from('gbp_report_templates' as any)
         .select('*')
         .eq('user_id', user.id)
         .order('is_default', { ascending: false })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as any;
 
       if (error) throw error;
       setTemplates(data || []);
@@ -97,11 +86,11 @@ export function GBPReportTemplatesManager() {
 
       // Vérifier si un template par défaut existe déjà
       const { data: existing } = await supabase
-        .from('gbp_report_templates')
+        .from('gbp_report_templates' as any)
         .select('id')
         .eq('user_id', user.id)
         .eq('is_default', true)
-        .maybeSingle();
+        .maybeSingle() as any;
 
       if (existing) {
         toast({
@@ -111,58 +100,21 @@ export function GBPReportTemplatesManager() {
         return;
       }
 
-      // Créer un template par défaut avec la structure actuelle
-      const defaultConfig = {
-        pages: [
-          {
-            type: 'cover',
-            elements: [
-              { type: 'title', value: 'Rapport de Performances' },
-              { type: 'client_logo', position: 'top-right' },
-              { type: 'client_name', variable: 'client.name' },
-            ],
-          },
-          {
-            type: 'kpi',
-            kpi_type: 'vue_ensemble',
-            screenshot_type: 'vue_ensemble',
-          },
-          {
-            type: 'kpi',
-            kpi_type: 'appels',
-            screenshot_type: 'appels',
-          },
-          {
-            type: 'kpi',
-            kpi_type: 'clics_web',
-            screenshot_type: 'clics_web',
-          },
-          {
-            type: 'kpi',
-            kpi_type: 'itineraire',
-            screenshot_type: 'itineraire',
-          },
-        ],
-        kpi_placements: {
-          vue_ensemble: { page: 2, position: { x: 0, y: 0 } },
-          appels: { page: 3, position: { x: 0, y: 0 } },
-          clics_web: { page: 4, position: { x: 0, y: 0 } },
-          itineraire: { page: 5, position: { x: 0, y: 0 } },
-        },
-        screenshot_placements: {
-          vue_ensemble: { page: 2, position: { x: 0, y: 200 } },
-          appels: { page: 3, position: { x: 0, y: 200 } },
-          clics_web: { page: 4, position: { x: 0, y: 200 } },
-          itineraire: { page: 5, position: { x: 0, y: 200 } },
-        },
+      // Créer un template par défaut avec la structure simplifiée
+      const defaultConfig: GBPTemplateConfig = {
+        pages: [], // Pages à uploader par l'utilisateur
+        variables: {},
+        screenshot_placements: {},
+        text_templates: {},
+        ocr_zones: DEFAULT_OCR_ZONES,
       };
 
       const { error } = await supabase
-        .from('gbp_report_templates')
+        .from('gbp_report_templates' as any)
         .insert({
           user_id: user.id,
           name: 'Template par défaut',
-          description: 'Template standard avec toutes les pages KPI',
+          description: 'Template standard - Uploadez vos pages et configurez les variables',
           is_default: true,
           template_config: defaultConfig,
         });
@@ -191,51 +143,54 @@ export function GBPReportTemplatesManager() {
       description: template.description || '',
       is_default: template.is_default,
     });
-    // Charger les zones OCR si elles existent
-    if (template.template_config?.ocr_zones) {
-      setOcrZones(template.template_config.ocr_zones);
+    
+    // Charger la configuration du template (nouveau format simplifié)
+    if (template.template_config) {
+      // Migrer depuis l'ancien format si nécessaire
+      const config = template.template_config as any;
+      const simplifiedConfig: GBPTemplateConfig = {
+        pages: config.pages || (template.template_base_url ? [template.template_base_url] : []),
+        variables: config.variables || config.variable_zones || {},
+        screenshot_placements: config.screenshot_placements || {},
+        text_templates: config.text_templates || {},
+        ocr_zones: config.ocr_zones || DEFAULT_OCR_ZONES,
+      };
+      setTemplateConfig(simplifiedConfig);
     } else {
-      setOcrZones(DEFAULT_OCR_ZONES);
+      setTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
     }
-    // Charger les zones de variables si elles existent
-    if (template.template_config?.variable_zones) {
-      setVariableZones(template.template_config.variable_zones);
-    } else {
-      setVariableZones({});
-    }
+    
     setShowEditDialog(true);
   };
 
-  const handleSaveOCRZones = async (zones: { current: any; previous: any }) => {
+  const handleSaveTemplateConfig = async () => {
     if (!editingTemplate) return;
 
-    const updatedZones = {
-      ...ocrZones,
-      [selectedScreenshotType]: zones,
-    };
-    setOcrZones(updatedZones);
-
-    // Sauvegarder dans la base de données
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const currentConfig = editingTemplate.template_config || {};
-      const updatedConfig = {
-        ...currentConfig,
-        ocr_zones: updatedZones,
-      };
+      // Valider la configuration
+      const validation = validateTemplateConfig(templateConfig);
+      if (!validation.valid) {
+        toast({
+          title: 'Configuration invalide',
+          description: validation.errors.join(', '),
+          variant: 'destructive',
+        });
+        return;
+      }
 
       const { error } = await supabase
-        .from('gbp_report_templates')
-        .update({ template_config: updatedConfig })
+        .from('gbp_report_templates' as any)
+        .update({ template_config: templateConfig })
         .eq('id', editingTemplate.id);
 
       if (error) throw error;
 
       toast({
-        title: '✅ Zones OCR sauvegardées',
-        description: 'Les zones OCR ont été enregistrées avec succès',
+        title: '✅ Configuration sauvegardée',
+        description: 'La configuration du template a été enregistrée avec succès',
       });
 
       fetchTemplates();
@@ -248,86 +203,49 @@ export function GBPReportTemplatesManager() {
     }
   };
 
-  const handleSaveVariableZone = async (zone: VariableZone) => {
-    if (!editingTemplate) return;
-
-    const updatedZones = {
-      ...variableZones,
-      [zone.variable]: zone,
-    };
-    setVariableZones(updatedZones);
-
-    // Sauvegarder dans la base de données
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const currentConfig = editingTemplate.template_config || {};
+  const handleSaveTextTemplates = async (textTemplates: {
+    vue_ensemble?: any;
+    appels?: any;
+    clics_web?: any;
+    itineraire?: any;
+  }) => {
+    setTemplateConfig(prev => ({
+      ...prev,
+      text_templates: textTemplates,
+    }));
+    
+    // Sauvegarder automatiquement
+    if (editingTemplate) {
       const updatedConfig = {
-        ...currentConfig,
-        variable_zones: updatedZones,
+        ...templateConfig,
+        text_templates: textTemplates,
       };
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
 
-      const { error } = await supabase
-        .from('gbp_report_templates')
-        .update({ template_config: updatedConfig })
-        .eq('id', editingTemplate.id);
+        const { error } = await supabase
+          .from('gbp_report_templates' as any)
+          .update({ template_config: updatedConfig })
+          .eq('id', editingTemplate.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: '✅ Zone de variable sauvegardée',
-        description: `La zone pour "${zone.variable}" a été enregistrée`,
-      });
+        setTemplateConfig(updatedConfig);
+        toast({
+          title: '✅ Templates de textes sauvegardés',
+          description: 'Les templates de textes ont été enregistrés avec succès',
+        });
 
-      fetchTemplates();
-      setSelectedVariableZone(null);
-    } catch (error: any) {
-      toast({
-        title: 'Erreur',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDeleteVariableZone = async (variableName: string) => {
-    if (!editingTemplate) return;
-
-    const updatedZones = { ...variableZones };
-    delete updatedZones[variableName];
-    setVariableZones(updatedZones);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const currentConfig = editingTemplate.template_config || {};
-      const updatedConfig = {
-        ...currentConfig,
-        variable_zones: updatedZones,
-      };
-
-      const { error } = await supabase
-        .from('gbp_report_templates')
-        .update({ template_config: updatedConfig })
-        .eq('id', editingTemplate.id);
-
-      if (error) throw error;
-
-      toast({
-        title: '✅ Zone supprimée',
-        description: 'La zone de variable a été supprimée',
-      });
-
-      fetchTemplates();
-      setSelectedVariableZone(null);
-    } catch (error: any) {
-      toast({
-        title: 'Erreur',
-        description: error.message,
-        variant: 'destructive',
-      });
+        fetchTemplates();
+      } catch (error: any) {
+        toast({
+          title: 'Erreur',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -340,18 +258,30 @@ export function GBPReportTemplatesManager() {
         // Si on définit comme template par défaut, retirer le statut des autres
         if (formData.is_default) {
           await supabase
-            .from('gbp_report_templates')
+            .from('gbp_report_templates' as any)
             .update({ is_default: false })
             .eq('user_id', user.id)
             .neq('id', editingTemplate.id);
         }
 
+        // Valider la configuration avant de sauvegarder
+        const validation = validateTemplateConfig(templateConfig);
+        if (!validation.valid) {
+          toast({
+            title: 'Configuration invalide',
+            description: validation.errors.join(', '),
+            variant: 'destructive',
+          });
+          return;
+        }
+
         const { error } = await supabase
-          .from('gbp_report_templates')
+          .from('gbp_report_templates' as any)
           .update({
             name: formData.name,
             description: formData.description,
             is_default: formData.is_default,
+            template_config: templateConfig,
           })
           .eq('id', editingTemplate.id);
 
@@ -380,7 +310,7 @@ export function GBPReportTemplatesManager() {
 
     try {
       const { error } = await supabase
-        .from('gbp_report_templates')
+        .from('gbp_report_templates' as any)
         .delete()
         .eq('id', id);
 
@@ -502,11 +432,10 @@ export function GBPReportTemplatesManager() {
           </DialogHeader>
 
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="general">Général</TabsTrigger>
               <TabsTrigger value="template">Template</TabsTrigger>
-              <TabsTrigger value="variables">Zones Variables</TabsTrigger>
-              <TabsTrigger value="ocr">Zones OCR</TabsTrigger>
+              <TabsTrigger value="textes">Templates de textes</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-4">
@@ -559,194 +488,27 @@ export function GBPReportTemplatesManager() {
               )}
             </TabsContent>
 
-            <TabsContent value="variables" className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <p className="text-sm font-semibold text-green-900 mb-2">
-                  📝 Zones Variables : Où placer les éléments dynamiques sur votre template
+            <TabsContent value="textes" className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm font-semibold text-blue-900 mb-2">
+                  Templates de textes conditionnels
                 </p>
-                <div className="text-sm text-green-800 space-y-1">
-                  <p>
-                    Les <strong>zones variables</strong> définissent où placer les éléments qui changent d'un client à l'autre sur votre <strong>template de rapport Canva</strong>.
-                  </p>
-                  <p className="mt-2">
-                    <strong>Exemples :</strong> Logo du client (page de garde), Nom du client, Métriques KPI, etc.
-                  </p>
-                </div>
+                <p className="text-sm text-blue-800">
+                  Configurez les textes qui seront générés automatiquement selon l'évolution des KPIs.
+                  Les textes changent selon que l'évolution est positive, négative ou stable.
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Page du template</Label>
-                  <Select
-                    value={selectedPage.toString()}
-                    onValueChange={(value) => {
-                      setSelectedPage(parseInt(value));
-                      setSelectedVariableZone(null); // Réinitialiser la sélection quand on change de page
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Page 1 (Page de garde)</SelectItem>
-                      <SelectItem value="2">Page 2</SelectItem>
-                      <SelectItem value="3">Page 3</SelectItem>
-                      <SelectItem value="4">Page 4</SelectItem>
-                      <SelectItem value="5">Page 5</SelectItem>
-                      <SelectItem value="6">Page 6</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Sélectionnez la page sur laquelle vous voulez définir une zone
-                  </p>
-                </div>
-                <div>
-                  <Label>Zone existante à modifier</Label>
-                  <Select
-                    value={selectedVariableZone || '__new__'}
-                    onValueChange={(value) => setSelectedVariableZone(value === '__new__' ? null : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Nouvelle zone..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__new__">➕ Créer une nouvelle zone</SelectItem>
-                      {Object.entries(variableZones)
-                        .filter(([_, zone]) => zone.page === selectedPage)
-                        .map(([varName, zone]) => (
-                          <SelectItem key={varName} value={varName}>
-                            {varName} ({zone.type || 'text'})
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Modifiez une zone existante ou créez-en une nouvelle
-                  </p>
-                </div>
-              </div>
-
-              {editingTemplate && editingTemplate.template_base_url ? (
-                <VariableZoneEditor
-                  imageUrl={editingTemplate.template_base_url}
-                  pageNumber={selectedPage}
-                  initialZone={selectedVariableZone ? variableZones[selectedVariableZone] : undefined}
-                  onSave={handleSaveVariableZone}
+              {editingTemplate ? (
+                <TextTemplateEditor
+                  templates={templateConfig.text_templates || {}}
+                  onSave={handleSaveTextTemplates}
                 />
               ) : (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Veuillez d'abord uploader un template pour configurer les zones de variables</p>
-                  </CardContent>
-                </Card>
-              )}
-
-              {Object.keys(variableZones).length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Zones configurées</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {Object.entries(variableZones)
-                        .filter(([_, zone]) => zone.page === selectedPage)
-                        .map(([varName, zone]) => (
-                          <div key={varName} className="flex items-center justify-between p-2 border rounded">
-                            <div>
-                              <strong>{varName}</strong> ({zone.type || 'text'})
-                              <div className="text-xs text-muted-foreground">
-                                x={Math.round(zone.x)}, y={Math.round(zone.y)}, 
-                                w={Math.round(zone.width)}, h={Math.round(zone.height)}
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteVariableZone(varName)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="ocr" className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                <p className="text-sm font-semibold text-amber-900 mb-2">
-                  ⚠️ Important : Zones OCR vs Zones Variables
-                </p>
-                <div className="text-sm text-amber-800 space-y-1">
-                  <p>
-                    <strong>Zones OCR</strong> : Définissez où se trouvent les chiffres sur vos <strong>captures d'écran du dashboard Google Business Profile</strong>.
-                  </p>
-                  <p>
-                    <strong>Zones Variables</strong> : Définissez où placer les textes/logos sur votre <strong>template de rapport Canva</strong>.
-                  </p>
-                  <p className="mt-2 font-medium">
-                    💡 Pour configurer les zones OCR, utilisez une capture d'écran d'exemple de votre dashboard GBP (pas le template du rapport).
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <Label>Sélectionner le type de capture d'écran</Label>
-                <Select
-                  value={selectedScreenshotType}
-                  onValueChange={(value: any) => setSelectedScreenshotType(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="vue_ensemble">Vue d'ensemble</SelectItem>
-                    <SelectItem value="appels">Appels téléphoniques</SelectItem>
-                    <SelectItem value="clics_web">Clics vers le site web</SelectItem>
-                    <SelectItem value="itineraire">Demandes d'itinéraire</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Sélectionnez le type de métrique pour lequel vous voulez définir les zones OCR
-                </p>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm font-semibold text-blue-900 mb-2">
-                  📸 Comment configurer les zones OCR :
-                </p>
-                <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1">
-                  <li>Prenez une capture d'écran de votre dashboard Google Business Profile</li>
-                  <li>Uploadez-la temporairement (ou utilisez le template comme référence visuelle)</li>
-                  <li>Dessinez deux rectangles : un pour la valeur "Current" (actuelle) et un pour "Previous" (année précédente)</li>
-                  <li>Ces zones seront utilisées pour extraire automatiquement les chiffres des futures captures d'écran</li>
-                </ol>
-              </div>
-
-              {editingTemplate && editingTemplate.template_base_url ? (
-                <div className="space-y-2">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
-                    <strong>Note :</strong> Vous utilisez actuellement le template du rapport comme référence. 
-                    Pour une meilleure précision, utilisez une vraie capture d'écran du dashboard GBP.
-                  </div>
-                  <OCRZoneEditor
-                    imageUrl={editingTemplate.template_base_url}
-                    screenshotType={selectedScreenshotType}
-                    initialZones={ocrZones[selectedScreenshotType]}
-                    onSave={handleSaveOCRZones}
-                  />
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="mb-2">Pour configurer les zones OCR, vous avez besoin d'une image de référence</p>
-                    <p className="text-xs">
-                      Utilisez une capture d'écran de votre dashboard GBP ou uploadez d'abord un template
-                    </p>
+                    <p>Veuillez d'abord créer un template</p>
                   </CardContent>
                 </Card>
               )}
