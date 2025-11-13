@@ -45,57 +45,8 @@ export function OCRZoneEditor({
   const [scale, setScale] = useState(1);
 
   const [imageError, setImageError] = useState<string | null>(null);
-  const [imageLoading, setImageLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
-
-  // Vérifier que le canvas est monté dans le DOM
-  // Réexécuter cette vérification quand imageUrl change (nouvelle image uploadée)
-  useEffect(() => {
-    // Réinitialiser canvasReady quand imageUrl change
-    setCanvasReady(false);
-    
-    let cancelled = false;
-    let timer1: NodeJS.Timeout | null = null;
-    let timer2: NodeJS.Timeout | null = null;
-    
-    // Utiliser requestAnimationFrame pour s'assurer que le DOM est mis à jour
-    const rafId = requestAnimationFrame(() => {
-      if (cancelled) return;
-      
-      // Vérifier immédiatement si le canvas est disponible
-      if (canvasRef.current) {
-        setCanvasReady(true);
-        return;
-      }
-      
-      // Sinon, attendre un peu et réessayer
-      timer1 = setTimeout(() => {
-        if (cancelled) return;
-        
-        if (canvasRef.current) {
-          setCanvasReady(true);
-        } else {
-          // Si toujours pas disponible, réessayer une dernière fois
-          timer2 = setTimeout(() => {
-            if (cancelled) return;
-            
-            if (canvasRef.current) {
-              setCanvasReady(true);
-            } else {
-              console.warn('Canvas non disponible après plusieurs tentatives');
-            }
-          }, 100);
-        }
-      }, 50);
-    });
-    
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(rafId);
-      if (timer1) clearTimeout(timer1);
-      if (timer2) clearTimeout(timer2);
-    };
-  }, [imageUrl]);
 
   // Fonction pour dessiner une zone
   const drawZone = useCallback((
@@ -161,26 +112,34 @@ export function OCRZoneEditor({
     if (!imageUrl) {
       setImageError('Aucune URL d\'image fournie');
       setImageLoading(false);
+      setCanvasReady(false);
       return;
     }
 
-    // Ne charger l'image que lorsque le canvas est prêt
-    if (!canvasReady) {
-      // Attendre que le canvas soit prêt
-      return;
-    }
-
-    setImageLoading(true);
+    // Réinitialiser les états
     setImageError(null);
+    setImageLoading(true);
+    setCanvasReady(false);
     
-    // Utiliser requestAnimationFrame pour s'assurer que le canvas est dans le DOM
-    requestAnimationFrame(() => {
+    let cancelled = false;
+    
+    // Attendre que le canvas soit monté, puis charger l'image
+    const checkAndLoadImage = () => {
+      if (cancelled) return;
+      
+      // Vérifier que le canvas est disponible
       const canvas = canvasRef.current;
       if (!canvas) {
-        setImageError('Canvas non disponible. Veuillez réessayer.');
-        setImageLoading(false);
+        // Si le canvas n'est pas encore disponible, réessayer après un court délai
+        setTimeout(checkAndLoadImage, 100);
         return;
       }
+
+      // Marquer le canvas comme prêt
+      setCanvasReady(true);
+
+      // Commencer le chargement de l'image
+      setImageLoading(true);
 
       // Utiliser fetch pour contourner les problèmes CORS
       const loadImageWithFetch = async () => {
@@ -246,6 +205,7 @@ export function OCRZoneEditor({
           };
           
           img.onerror = () => {
+            if (cancelled) return;
             URL.revokeObjectURL(objectUrl);
             setImageError('Impossible de charger l\'image après téléchargement');
             setImageLoading(false);
@@ -258,6 +218,8 @@ export function OCRZoneEditor({
           const img = new Image();
           
           img.onload = () => {
+            if (cancelled) return;
+            
             // Vérifier à nouveau que le canvas est disponible
             const currentCanvas = canvasRef.current;
             if (!currentCanvas) {
@@ -278,6 +240,8 @@ export function OCRZoneEditor({
             
             // Utiliser requestAnimationFrame pour s'assurer que le canvas est prêt
             requestAnimationFrame(() => {
+              if (cancelled) return;
+              
               const canvasToDraw = canvasRef.current;
               if (!canvasToDraw) {
                 setImageError('Canvas non disponible lors du dessin');
@@ -300,6 +264,7 @@ export function OCRZoneEditor({
           };
           
           img.onerror = () => {
+            if (cancelled) return;
             console.error('Erreur de chargement de l\'image:', error);
             setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible et que CORS est configuré.');
             setImageLoading(false);
@@ -310,9 +275,21 @@ export function OCRZoneEditor({
         }
       };
 
-      loadImageWithFetch();
-    });
-  }, [imageUrl, canvasReady]);
+      // Attendre un peu que le canvas soit complètement monté
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        loadImageWithFetch();
+      });
+    };
+
+    // Commencer la vérification après un court délai pour laisser le DOM se mettre à jour
+    const timer = setTimeout(checkAndLoadImage, 100);
+    
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [imageUrl]);
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -425,9 +402,9 @@ export function OCRZoneEditor({
             </p>
           </div>
         )}
-        {!imageLoading && !imageError && (
+        {/* Toujours rendre le canvas pour qu'il soit disponible dans le DOM, même pendant le chargement */}
+        {imageUrl && (
           <div className="border rounded-lg overflow-auto max-h-[600px] flex justify-center bg-gray-50 relative">
-            {/* Toujours rendre le canvas pour qu'il soit disponible dans le DOM */}
             <canvas
               ref={canvasRef}
               onMouseDown={handleMouseDown}
@@ -437,15 +414,17 @@ export function OCRZoneEditor({
               onContextMenu={(e) => e.preventDefault()}
               className="cursor-crosshair"
               style={{ 
-                opacity: canvasReady ? 1 : 0,
-                pointerEvents: canvasReady ? 'auto' : 'none'
+                opacity: !imageLoading && canvasReady ? 1 : 0,
+                pointerEvents: !imageLoading && canvasReady ? 'auto' : 'none'
               }}
             />
-            {!canvasReady && (
+            {(imageLoading || !canvasReady) && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-50/75 z-10">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Initialisation du canvas...</p>
+                  <p className="text-sm text-muted-foreground">
+                    {imageLoading ? 'Chargement de l\'image...' : 'Initialisation du canvas...'}
+                  </p>
                 </div>
               </div>
             )}
