@@ -32,6 +32,7 @@ import { Building2, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import type { Tables } from "@/integrations/supabase/types";
+import { improveDatabaseError, logDatabaseError } from "@/lib/dbErrorHandler";
 
 type Client = Tables<"clients">;
 
@@ -81,9 +82,10 @@ const Clients = () => {
       if (error) throw error;
       setClients(data || []);
     } catch (error: any) {
+      logDatabaseError(error, "fetchClients");
       toast({
         title: "Erreur",
-        description: error.message,
+        description: improveDatabaseError(error),
         variant: "destructive",
       });
     } finally {
@@ -170,9 +172,10 @@ const Clients = () => {
       setShowDialog(false);
       fetchClients();
     } catch (error: any) {
+      logDatabaseError(error, "handleSave");
       toast({
         title: "Erreur",
-        description: error.message,
+        description: improveDatabaseError(error),
         variant: "destructive",
       });
     }
@@ -191,9 +194,10 @@ const Clients = () => {
       toast({ title: "🗑️ Client supprimé" });
       fetchClients();
     } catch (error: any) {
+      logDatabaseError(error, "handleDelete");
       toast({
         title: "Erreur",
-        description: error.message,
+        description: improveDatabaseError(error),
         variant: "destructive",
       });
     }
