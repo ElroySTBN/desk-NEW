@@ -241,7 +241,15 @@ export function cleanTemplateConfig(config: Partial<GBPTemplateConfig>): GBPTemp
   
   for (const category of categories) {
     const placement = config.screenshot_placements?.[category];
-    if (placement &&
+    
+    // Si la zone a été explicitement définie à null, elle a été supprimée - ne pas la recréer
+    if (placement === null) {
+      // Garder la valeur par défaut mais avec une page inexistante pour qu'elle ne s'affiche pas
+      cleanedScreenshotPlacements[category] = {
+        ...DEFAULT_TEMPLATE_CONFIG.screenshot_placements[category],
+        page: 999, // Page inexistante pour indiquer que la zone est désactivée
+      };
+    } else if (placement &&
         placement.page !== undefined &&
         placement.x !== undefined &&
         placement.y !== undefined &&
@@ -268,7 +276,15 @@ export function cleanTemplateConfig(config: Partial<GBPTemplateConfig>): GBPTemp
   
   for (const category of categories) {
     const placement = config.text_placements?.[category];
-    if (placement &&
+    
+    // Si la zone a été explicitement définie à null, elle a été supprimée - ne pas la recréer
+    if (placement === null) {
+      // Garder la valeur par défaut mais avec une page inexistante pour qu'elle ne s'affiche pas
+      cleanedTextPlacements[category] = {
+        ...DEFAULT_TEMPLATE_CONFIG.text_placements[category],
+        page: 999, // Page inexistante pour indiquer que la zone est désactivée
+      };
+    } else if (placement &&
         placement.page !== undefined &&
         placement.x !== undefined &&
         placement.y !== undefined &&

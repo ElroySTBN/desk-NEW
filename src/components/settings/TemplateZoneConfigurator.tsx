@@ -111,7 +111,8 @@ export function TemplateZoneConfigurator({
       if (category) {
         // Screenshot
         const screenshotPlacement = templateConfig.screenshot_placements[category.value];
-        if (screenshotPlacement && screenshotPlacement.page === page) {
+        // Ignorer les zones avec page === 999 (zones désactivées/supprimées)
+        if (screenshotPlacement && screenshotPlacement.page === page && screenshotPlacement.page !== 999) {
           zones.push({
             id: `screenshot_${category.value}`,
             type: 'screenshot',
@@ -123,7 +124,8 @@ export function TemplateZoneConfigurator({
 
         // Texte
         const textPlacement = templateConfig.text_placements[category.value];
-        if (textPlacement && textPlacement.page === page) {
+        // Ignorer les zones avec page === 999 (zones désactivées/supprimées)
+        if (textPlacement && textPlacement.page === page && textPlacement.page !== 999) {
           zones.push({
             id: `text_${category.value}`,
             type: 'text',
@@ -688,24 +690,32 @@ export function TemplateZoneConfigurator({
 
   // Supprimer une zone
   const handleDeleteZone = (zoneId: string) => {
+    // Demander confirmation avant de supprimer
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette zone ?')) {
+      return;
+    }
+
     if (zoneId === 'logo') {
       onConfigChange({
         logo_placement: undefined,
       });
     } else if (zoneId.startsWith('screenshot_')) {
       const category = zoneId.replace('screenshot_', '') as keyof typeof templateConfig.screenshot_placements;
+      // Utiliser null pour indiquer explicitement que la zone a été supprimée
+      // Cela permettra à cleanTemplateConfig de ne pas la recréer
       onConfigChange({
         screenshot_placements: {
           ...templateConfig.screenshot_placements,
-          [category]: undefined as any,
+          [category]: null as any,
         },
       });
     } else if (zoneId.startsWith('text_')) {
       const category = zoneId.replace('text_', '') as keyof typeof templateConfig.text_placements;
+      // Utiliser null pour indiquer explicitement que la zone a été supprimée
       onConfigChange({
         text_placements: {
           ...templateConfig.text_placements,
-          [category]: undefined as any,
+          [category]: null as any,
         },
       });
     } else if (zoneId.startsWith('variable_')) {

@@ -46,6 +46,44 @@ export function OCRZoneEditor({
 
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(true);
+  const [canvasReady, setCanvasReady] = useState(false);
+
+  // Vérifier que le canvas est monté dans le DOM
+  // Réexécuter cette vérification quand imageUrl change (nouvelle image uploadée)
+  useEffect(() => {
+    // Réinitialiser canvasReady quand imageUrl change
+    setCanvasReady(false);
+    
+    // Utiliser requestAnimationFrame pour s'assurer que le DOM est mis à jour
+    const rafId = requestAnimationFrame(() => {
+      // Vérifier immédiatement si le canvas est disponible
+      if (canvasRef.current) {
+        setCanvasReady(true);
+        return;
+      }
+      
+      // Sinon, attendre un peu et réessayer
+      const timer = setTimeout(() => {
+        if (canvasRef.current) {
+          setCanvasReady(true);
+        } else {
+          // Si toujours pas disponible, réessayer une dernière fois
+          const retryTimer = setTimeout(() => {
+            if (canvasRef.current) {
+              setCanvasReady(true);
+            } else {
+              console.warn('Canvas non disponible après plusieurs tentatives');
+            }
+          }, 100);
+          return () => clearTimeout(retryTimer);
+        }
+      }, 50);
+      
+      return () => clearTimeout(timer);
+    });
+    
+    return () => cancelAnimationFrame(rafId);
+  }, [imageUrl]);
 
   // Fonction pour dessiner une zone
   const drawZone = useCallback((
@@ -114,112 +152,155 @@ export function OCRZoneEditor({
       return;
     }
 
+    // Ne charger l'image que lorsque le canvas est prêt
+    if (!canvasReady) {
+      // Attendre que le canvas soit prêt
+      return;
+    }
+
     setImageLoading(true);
     setImageError(null);
     
-    // Utiliser fetch pour contourner les problèmes CORS
-    const loadImageWithFetch = async () => {
-      try {
-        // Essayer d'abord avec fetch pour contourner CORS
-        const response = await fetch(imageUrl, {
-          mode: 'cors',
-          credentials: 'omit',
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to load image: ${response.statusText}`);
-        }
-        
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        
-        const img = new Image();
-        
-        img.onload = () => {
-          URL.revokeObjectURL(objectUrl);
-          imageRef.current = img;
-          const canvas = canvasRef.current;
-          if (!canvas) {
-            setImageError('Canvas non disponible');
-            setImageLoading(false);
-            return;
-          }
-
-          // Calculer l'échelle pour que l'image rentre dans le canvas
-          const maxWidth = 800;
-          const maxHeight = 600;
-          const scaleX = maxWidth / img.width;
-          const scaleY = maxHeight / img.height;
-          const newScale = Math.min(scaleX, scaleY, 1);
-
-          setScale(newScale);
-          canvas.width = img.width * newScale;
-          canvas.height = img.height * newScale;
-
-          // Dessiner immédiatement après avoir chargé l'image
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          }
-          
-          setImageLoading(false);
-        };
-        
-        img.onerror = () => {
-          URL.revokeObjectURL(objectUrl);
-          setImageError('Impossible de charger l\'image après téléchargement');
-          setImageLoading(false);
-        };
-        
-        img.src = objectUrl;
-      } catch (error) {
-        console.warn('Fetch failed, trying direct load:', error);
-        // Fallback : charger directement (peut échouer avec CORS)
-        const img = new Image();
-        
-        img.onload = () => {
-          imageRef.current = img;
-          const canvas = canvasRef.current;
-          if (!canvas) {
-            setImageError('Canvas non disponible');
-            setImageLoading(false);
-            return;
-          }
-
-          const maxWidth = 800;
-          const maxHeight = 600;
-          const scaleX = maxWidth / img.width;
-          const scaleY = maxHeight / img.height;
-          const newScale = Math.min(scaleX, scaleY, 1);
-
-          setScale(newScale);
-          canvas.width = img.width * newScale;
-          canvas.height = img.height * newScale;
-
-          // Dessiner immédiatement après avoir chargé l'image
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          }
-          
-          setImageLoading(false);
-        };
-        
-        img.onerror = () => {
-          console.error('Erreur de chargement de l\'image:', error);
-          setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible et que CORS est configuré.');
-          setImageLoading(false);
-        };
-        
-        img.crossOrigin = 'anonymous';
-        img.src = imageUrl;
+    // Utiliser requestAnimationFrame pour s'assurer que le canvas est dans le DOM
+    requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        setImageError('Canvas non disponible. Veuillez réessayer.');
+        setImageLoading(false);
+        return;
       }
-    };
 
-    loadImageWithFetch();
-  }, [imageUrl]);
+      // Utiliser fetch pour contourner les problèmes CORS
+      const loadImageWithFetch = async () => {
+        try {
+          // Essayer d'abord avec fetch pour contourner CORS
+          const response = await fetch(imageUrl, {
+            mode: 'cors',
+            credentials: 'omit',
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to load image: ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          
+          const img = new Image();
+          
+          img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            
+            // Vérifier à nouveau que le canvas est disponible
+            const currentCanvas = canvasRef.current;
+            if (!currentCanvas) {
+              setImageError('Canvas non disponible lors du chargement de l\'image');
+              setImageLoading(false);
+              return;
+            }
+
+            imageRef.current = img;
+
+            // Calculer l'échelle pour que l'image rentre dans le canvas
+            const maxWidth = 800;
+            const maxHeight = 600;
+            const scaleX = maxWidth / img.width;
+            const scaleY = maxHeight / img.height;
+            const newScale = Math.min(scaleX, scaleY, 1);
+
+            setScale(newScale);
+            
+            // Utiliser requestAnimationFrame pour s'assurer que le canvas est prêt
+            requestAnimationFrame(() => {
+              const canvasToDraw = canvasRef.current;
+              if (!canvasToDraw) {
+                setImageError('Canvas non disponible lors du dessin');
+                setImageLoading(false);
+                return;
+              }
+
+              canvasToDraw.width = img.width * newScale;
+              canvasToDraw.height = img.height * newScale;
+
+              // Dessiner immédiatement après avoir chargé l'image
+              const ctx = canvasToDraw.getContext('2d');
+              if (ctx) {
+                ctx.clearRect(0, 0, canvasToDraw.width, canvasToDraw.height);
+                ctx.drawImage(img, 0, 0, canvasToDraw.width, canvasToDraw.height);
+              }
+              
+              setImageLoading(false);
+            });
+          };
+          
+          img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            setImageError('Impossible de charger l\'image après téléchargement');
+            setImageLoading(false);
+          };
+          
+          img.src = objectUrl;
+        } catch (error) {
+          console.warn('Fetch failed, trying direct load:', error);
+          // Fallback : charger directement (peut échouer avec CORS)
+          const img = new Image();
+          
+          img.onload = () => {
+            // Vérifier à nouveau que le canvas est disponible
+            const currentCanvas = canvasRef.current;
+            if (!currentCanvas) {
+              setImageError('Canvas non disponible lors du chargement de l\'image');
+              setImageLoading(false);
+              return;
+            }
+
+            imageRef.current = img;
+
+            const maxWidth = 800;
+            const maxHeight = 600;
+            const scaleX = maxWidth / img.width;
+            const scaleY = maxHeight / img.height;
+            const newScale = Math.min(scaleX, scaleY, 1);
+
+            setScale(newScale);
+            
+            // Utiliser requestAnimationFrame pour s'assurer que le canvas est prêt
+            requestAnimationFrame(() => {
+              const canvasToDraw = canvasRef.current;
+              if (!canvasToDraw) {
+                setImageError('Canvas non disponible lors du dessin');
+                setImageLoading(false);
+                return;
+              }
+
+              canvasToDraw.width = img.width * newScale;
+              canvasToDraw.height = img.height * newScale;
+
+              // Dessiner immédiatement après avoir chargé l'image
+              const ctx = canvasToDraw.getContext('2d');
+              if (ctx) {
+                ctx.clearRect(0, 0, canvasToDraw.width, canvasToDraw.height);
+                ctx.drawImage(img, 0, 0, canvasToDraw.width, canvasToDraw.height);
+              }
+              
+              setImageLoading(false);
+            });
+          };
+          
+          img.onerror = () => {
+            console.error('Erreur de chargement de l\'image:', error);
+            setImageError('Impossible de charger l\'image. Vérifiez que l\'URL est accessible et que CORS est configuré.');
+            setImageLoading(false);
+          };
+          
+          img.crossOrigin = 'anonymous';
+          img.src = imageUrl;
+        }
+      };
+
+      loadImageWithFetch();
+    });
+  }, [imageUrl, canvasReady]);
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -333,7 +414,8 @@ export function OCRZoneEditor({
           </div>
         )}
         {!imageLoading && !imageError && (
-          <div className="border rounded-lg overflow-auto max-h-[600px] flex justify-center bg-gray-50">
+          <div className="border rounded-lg overflow-auto max-h-[600px] flex justify-center bg-gray-50 relative">
+            {/* Toujours rendre le canvas pour qu'il soit disponible dans le DOM */}
             <canvas
               ref={canvasRef}
               onMouseDown={handleMouseDown}
@@ -342,7 +424,19 @@ export function OCRZoneEditor({
               onMouseLeave={handleMouseUp}
               onContextMenu={(e) => e.preventDefault()}
               className="cursor-crosshair"
+              style={{ 
+                opacity: canvasReady ? 1 : 0,
+                pointerEvents: canvasReady ? 'auto' : 'none'
+              }}
             />
+            {!canvasReady && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-50/75 z-10">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Initialisation du canvas...</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
