@@ -151,14 +151,17 @@ export type Database = {
           company: string | null
           contract_type: string | null
           created_at: string | null
+          date_anniversaire_abonnement: string | null
+          date_debut_contrat: string | null
           email: string | null
           id: string
-          monthly_amount: number | null
+          montant_mensuel: number | null
           name: string
           notes: string | null
           phone: string | null
-          start_date: string | null
-          status: string
+          secteur_activite: string | null
+          statut: string
+          type_campagne: string[] | null
           updated_at: string | null
           user_id: string
         }
@@ -166,14 +169,17 @@ export type Database = {
           company?: string | null
           contract_type?: string | null
           created_at?: string | null
+          date_anniversaire_abonnement?: string | null
+          date_debut_contrat?: string | null
           email?: string | null
           id?: string
-          monthly_amount?: number | null
+          montant_mensuel?: number | null
           name: string
           notes?: string | null
           phone?: string | null
-          start_date?: string | null
-          status?: string
+          secteur_activite?: string | null
+          statut?: string
+          type_campagne?: string[] | null
           updated_at?: string | null
           user_id: string
         }
@@ -181,14 +187,17 @@ export type Database = {
           company?: string | null
           contract_type?: string | null
           created_at?: string | null
+          date_anniversaire_abonnement?: string | null
+          date_debut_contrat?: string | null
           email?: string | null
           id?: string
-          monthly_amount?: number | null
+          montant_mensuel?: number | null
           name?: string
           notes?: string | null
           phone?: string | null
-          start_date?: string | null
-          status?: string
+          secteur_activite?: string | null
+          statut?: string
+          type_campagne?: string[] | null
           updated_at?: string | null
           user_id?: string
         }
