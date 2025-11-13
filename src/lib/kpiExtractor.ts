@@ -1,13 +1,17 @@
 import {
   extractNumberFromZone,
+  extractPercentageFromZone,
+  extractTextFromZone,
   extractMultipleZones,
-  parseNumberFromOCR,
+  parsePercentageFromOCR,
   type OCRZone,
 } from './ocrService';
 import type { GBPReportData } from '@/types/gbp-reports';
 
 /**
  * Configuration des zones OCR pour chaque type de capture d'écran
+ * - current: Zone pour extraire la valeur absolue (ex: 150)
+ * - previous: Zone pour extraire le pourcentage d'évolution (ex: +15% ou -10%)
  */
 export interface KPIZonesConfig {
   vue_ensemble: {
@@ -30,10 +34,12 @@ export interface KPIZonesConfig {
 
 /**
  * Résultat de l'extraction d'un KPI
+ * - current: Valeur absolue (nombre)
+ * - previous: Pourcentage d'évolution (ex: 15.0 pour +15%, -10.0 pour -10%)
  */
 export interface ExtractedKPI {
-  current: number | null;
-  previous: number | null;
+  current: number | null; // Valeur absolue
+  previous: number | null; // Pourcentage d'évolution
   confidence: {
     current: number;
     previous: number;
@@ -56,6 +62,8 @@ export interface ExtractedKPIs {
 
 /**
  * Extrait les KPIs depuis une capture d'écran en utilisant les zones prédéfinies
+ * - current: Extrait un nombre absolu depuis la zone verte
+ * - previous: Extrait un pourcentage d'évolution depuis la zone bleue (ex: +15% ou -10%)
  */
 export async function extractKPIsFromScreenshot(
   screenshotSource: string | File | Blob,
@@ -64,11 +72,16 @@ export async function extractKPIsFromScreenshot(
 ): Promise<ExtractedKPI> {
   const zones = zonesConfig[screenshotType];
   
-  // Extraire les deux valeurs (current et previous) en parallèle
-  const [currentResult, previousResult] = await Promise.all([
+  // Extraire current (nombre absolu) et previous (pourcentage) en parallèle
+  // current: utiliser extractNumberFromZone pour extraire un nombre absolu
+  // previous: utiliser extractPercentageFromZone pour extraire un pourcentage d'évolution
+  const [currentResult, previousTextResult] = await Promise.all([
     extractNumberFromZone(screenshotSource, zones.current),
-    extractNumberFromZone(screenshotSource, zones.previous),
+    extractTextFromZone(screenshotSource, zones.previous),
   ]);
+  
+  // Parser le pourcentage depuis le texte extrait
+  const previousPercentage = parsePercentageFromOCR(previousTextResult.text);
   
   // Pour obtenir le texte brut et la confiance, on doit faire une extraction complète
   const allZones = await extractMultipleZones(screenshotSource, {
@@ -77,8 +90,8 @@ export async function extractKPIsFromScreenshot(
   });
   
   return {
-    current: currentResult,
-    previous: previousResult,
+    current: currentResult, // Nombre absolu
+    previous: previousPercentage, // Pourcentage d'évolution (ex: 15.0 pour +15%, -10.0 pour -10%)
     confidence: {
       current: allZones.current.confidence,
       previous: allZones.previous.confidence,
@@ -165,29 +178,51 @@ export async function extractAllKPIs(
 
 /**
  * Convertit les KPIs extraits au format GBPReportData
+ * Note: previous dans ExtractedKPI est un pourcentage d'évolution, mais GBPReportData attend une valeur absolue
+ * On calcule donc la valeur précédente à partir du pourcentage d'évolution
  */
 export function convertExtractedKPIsToReportData(
   extractedKPIs: ExtractedKPIs
 ): Partial<GBPReportData['kpis']> {
+  // Fonction helper pour calculer la valeur précédente à partir du pourcentage d'évolution
+  const calculatePreviousValue = (current: number, percentage: number | null): number => {
+    if (percentage === null || percentage === 0 || !current) return current;
+    // Si percentage = 15.0 (pour +15%), alors current = previous * (1 + 15/100)
+    // Donc previous = current / (1 + percentage/100)
+    return current / (1 + percentage / 100);
+  };
+  
   return {
     vue_ensemble: {
       current: extractedKPIs.vue_ensemble.current || 0,
-      previous: extractedKPIs.vue_ensemble.previous || 0,
+      previous: calculatePreviousValue(
+        extractedKPIs.vue_ensemble.current || 0,
+        extractedKPIs.vue_ensemble.previous || 0
+      ),
       analysis: '', // L'analyse sera générée plus tard avec les templates de texte
     },
     appels: {
       current: extractedKPIs.appels.current || 0,
-      previous: extractedKPIs.appels.previous || 0,
+      previous: calculatePreviousValue(
+        extractedKPIs.appels.current || 0,
+        extractedKPIs.appels.previous || 0
+      ),
       analysis: '',
     },
     clics_web: {
       current: extractedKPIs.clics_web.current || 0,
-      previous: extractedKPIs.clics_web.previous || 0,
+      previous: calculatePreviousValue(
+        extractedKPIs.clics_web.current || 0,
+        extractedKPIs.clics_web.previous || 0
+      ),
       analysis: '',
     },
     itineraire: {
       current: extractedKPIs.itineraire.current || 0,
-      previous: extractedKPIs.itineraire.previous || 0,
+      previous: calculatePreviousValue(
+        extractedKPIs.itineraire.current || 0,
+        extractedKPIs.itineraire.previous || 0
+      ),
       analysis: '',
     },
   };

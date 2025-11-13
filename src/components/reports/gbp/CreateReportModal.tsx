@@ -55,11 +55,17 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
   });
   
   // KPIs (comparaison N vs N-1 pour le même mois)
-  const [kpis, setKpis] = useState<GBPReportData['kpis']>({
-    vue_ensemble: { current: 0, previous: 0, analysis: '' },
-    appels: { current: 0, previous: 0, analysis: '' },
-    clics_web: { current: 0, previous: 0, analysis: '' },
-    itineraire: { current: 0, previous: 0, analysis: '' },
+  // Note: previous est maintenant un pourcentage d'évolution (number | null), pas une valeur absolue
+  const [kpis, setKpis] = useState<{
+    vue_ensemble: { current: number; previous: number | null; analysis: string };
+    appels: { current: number; previous: number | null; analysis: string };
+    clics_web: { current: number; previous: number | null; analysis: string };
+    itineraire: { current: number; previous: number | null; analysis: string };
+  }>({
+    vue_ensemble: { current: 0, previous: null, analysis: '' },
+    appels: { current: 0, previous: null, analysis: '' },
+    clics_web: { current: 0, previous: null, analysis: '' },
+    itineraire: { current: 0, previous: null, analysis: '' },
   });
   
   // Email
@@ -97,10 +103,10 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
       itineraire: null,
     });
     setKpis({
-      vue_ensemble: { current: 0, previous: 0, analysis: '' },
-      appels: { current: 0, previous: 0, analysis: '' },
-      clics_web: { current: 0, previous: 0, analysis: '' },
-      itineraire: { current: 0, previous: 0, analysis: '' },
+      vue_ensemble: { current: 0, previous: null, analysis: '' },
+      appels: { current: 0, previous: null, analysis: '' },
+      clics_web: { current: 0, previous: null, analysis: '' },
+      itineraire: { current: 0, previous: null, analysis: '' },
     });
     setSendEmail(true);
     setClientEmail('');
@@ -226,6 +232,113 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
       loadTemplateSettings();
     }
   }, [open]);
+
+  // Automatisation : détecter quand tous les screenshots sont uploadés et générer automatiquement les analyses
+  useEffect(() => {
+    // Vérifier si tous les screenshots sont uploadés
+    const allScreenshotsUploaded = 
+      screenshots.vue_ensemble && 
+      screenshots.appels && 
+      screenshots.clics_web && 
+      screenshots.itineraire;
+    
+    // Vérifier si aucun OCR n'est en cours
+    const noOCRExtracting = 
+      !extractingOCR.vue_ensemble && 
+      !extractingOCR.appels && 
+      !extractingOCR.clics_web && 
+      !extractingOCR.itineraire;
+    
+    // Vérifier si au moins un KPI a été extrait (current et previous)
+    const hasExtractedKPIs = 
+      (kpis.vue_ensemble.current > 0 && kpis.vue_ensemble.previous !== null) ||
+      (kpis.appels.current > 0 && kpis.appels.previous !== null) ||
+      (kpis.clics_web.current > 0 && kpis.clics_web.previous !== null) ||
+      (kpis.itineraire.current > 0 && kpis.itineraire.previous !== null);
+    
+    // Si tous les screenshots sont uploadés, aucun OCR n'est en cours, et on a des KPIs extraits
+    // mais pas encore d'analyses générées, générer les analyses automatiquement
+    if (
+      allScreenshotsUploaded && 
+      noOCRExtracting && 
+      hasExtractedKPIs && 
+      textTemplates && 
+      selectedClientId && 
+      selectedMonth
+    ) {
+      // Vérifier si toutes les analyses sont vides
+      const allAnalysesEmpty = 
+        !kpis.vue_ensemble.analysis && 
+        !kpis.appels.analysis && 
+        !kpis.clics_web.analysis && 
+        !kpis.itineraire.analysis;
+      
+      if (allAnalysesEmpty) {
+        const client = clients.find(c => c.id === selectedClientId);
+        if (client) {
+          // Créer un objet temporaire avec les pourcentages d'évolution pour la génération des analyses
+          const tempReportData = {
+            client: {
+              id: client.id,
+              name: client.name,
+              company: client.company,
+              logo_url: client.logo_url,
+            },
+            period: {
+              month: selectedMonth,
+              year: year,
+            },
+            kpis: kpis, // kpis contient previous comme pourcentage d'évolution
+            screenshots: {
+              vue_ensemble: screenshots.vue_ensemble || '',
+              appels: screenshots.appels || '',
+              clics_web: screenshots.clics_web || '',
+              itineraire: screenshots.itineraire || '',
+            },
+          } as any; // Utiliser as any car previous est maintenant un pourcentage, pas une valeur absolue
+          
+          // Générer toutes les analyses automatiquement
+          const generatedAnalyses = generateAllAnalysisTexts(tempReportData, textTemplates);
+          
+          // Mettre à jour les analyses
+          setKpis(prev => ({
+            vue_ensemble: {
+              ...prev.vue_ensemble,
+              analysis: generatedAnalyses.vue_ensemble,
+            },
+            appels: {
+              ...prev.appels,
+              analysis: generatedAnalyses.appels,
+            },
+            clics_web: {
+              ...prev.clics_web,
+              analysis: generatedAnalyses.clics_web,
+            },
+            itineraire: {
+              ...prev.itineraire,
+              analysis: generatedAnalyses.itineraire,
+            },
+          }));
+          
+          // Afficher un message de confirmation
+          toast({
+            title: '✅ Analyses générées automatiquement',
+            description: 'Tous les KPIs ont été extraits et les analyses ont été générées automatiquement.',
+          });
+        }
+      }
+    }
+  }, [
+    screenshots, 
+    extractingOCR, 
+    kpis, 
+    textTemplates, 
+    selectedClientId, 
+    selectedMonth, 
+    clients, 
+    year,
+    toast
+  ]);
   
 
   // Fonction pour extraire les KPIs via OCR
@@ -243,17 +356,19 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
         const updated = {
           ...prev,
           [screenshotType]: {
-            current: extracted.current || prev[screenshotType].current,
-            previous: extracted.previous || prev[screenshotType].previous,
+            current: extracted.current !== null ? extracted.current : prev[screenshotType].current,
+            previous: extracted.previous !== null ? extracted.previous : prev[screenshotType].previous,
             analysis: prev[screenshotType].analysis, // Garder l'analyse existante
           },
         };
         
         // Générer automatiquement l'analyse après extraction OCR si templates disponibles et analyse vide
-        if (textTemplates && extracted.current && extracted.previous && !updated[screenshotType].analysis) {
+        // Note: updated contient previous comme pourcentage d'évolution, mais GBPReportData attend une valeur absolue
+        // On utilise as any pour contourner le problème de type, car calculateEvolution attend maintenant un pourcentage
+        if (textTemplates && extracted.current && extracted.previous !== null && !updated[screenshotType].analysis) {
           const client = clients.find(c => c.id === selectedClientId);
           if (client && selectedMonth) {
-            const tempReportData: GBPReportData = {
+            const tempReportData = {
               client: {
                 id: client.id,
                 name: client.name,
@@ -264,14 +379,14 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
                 month: selectedMonth,
                 year: year,
               },
-              kpis: updated,
+              kpis: updated, // updated contient previous comme pourcentage d'évolution
               screenshots: {
                 vue_ensemble: screenshots.vue_ensemble || '',
                 appels: screenshots.appels || '',
                 clics_web: screenshots.clics_web || '',
                 itineraire: screenshots.itineraire || '',
               },
-            };
+            } as any; // Utiliser as any car previous est maintenant un pourcentage, pas une valeur absolue
             
             const generatedAnalyses = generateAllAnalysisTexts(tempReportData, textTemplates);
             
@@ -324,7 +439,8 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
           return false;
         }
         // Vérifier que les KPIs principaux sont remplis (au moins current et previous)
-        const missingKPIs = Object.entries(kpis).filter(([_, kpi]) => kpi.current === 0 || kpi.previous === 0);
+        // previous est maintenant un pourcentage d'évolution, donc on vérifie seulement si current > 0
+        const missingKPIs = Object.entries(kpis).filter(([_, kpi]) => kpi.current === 0 || kpi.previous === null);
         if (missingKPIs.length > 0) {
           toast({
             title: 'Attention',
@@ -347,6 +463,14 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
       if (step === 1 && textTemplates && selectedClientId && selectedMonth) {
         const client = clients.find(c => c.id === selectedClientId);
         if (client) {
+          // Convertir les pourcentages d'évolution en valeurs absolues pour la génération des analyses
+          // Dans kpis, previous est un pourcentage d'évolution, mais generateAllAnalysisTexts attend une valeur absolue
+          // Cependant, calculateEvolution utilise maintenant le pourcentage directement, donc on doit créer un objet temporaire
+          const convertPercentageToValue = (current: number, percentage: number): number => {
+            if (percentage === 0 || !current) return current;
+            return current / (1 + percentage / 100);
+          };
+
           const tempReportData: GBPReportData = {
             client: {
               id: client.id,
@@ -358,7 +482,28 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
               month: selectedMonth,
               year: year,
             },
-            kpis: kpis,
+            kpis: {
+              vue_ensemble: {
+                current: kpis.vue_ensemble.current,
+                previous: convertPercentageToValue(kpis.vue_ensemble.current, kpis.vue_ensemble.previous),
+                analysis: kpis.vue_ensemble.analysis,
+              },
+              appels: {
+                current: kpis.appels.current,
+                previous: convertPercentageToValue(kpis.appels.current, kpis.appels.previous),
+                analysis: kpis.appels.analysis,
+              },
+              clics_web: {
+                current: kpis.clics_web.current,
+                previous: convertPercentageToValue(kpis.clics_web.current, kpis.clics_web.previous),
+                analysis: kpis.clics_web.analysis,
+              },
+              itineraire: {
+                current: kpis.itineraire.current,
+                previous: convertPercentageToValue(kpis.itineraire.current, kpis.itineraire.previous),
+                analysis: kpis.itineraire.analysis,
+              },
+            },
             screenshots: {
               vue_ensemble: screenshots.vue_ensemble || '',
               appels: screenshots.appels || '',
@@ -368,7 +513,32 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
           };
           
           // Générer les analyses seulement si elles sont vides
-          const generatedAnalyses = generateAllAnalysisTexts(tempReportData, textTemplates);
+          // Note: generateAllAnalysisTexts utilise calculateEvolution qui attend maintenant un pourcentage
+          // Mais on a converti en valeur absolue, donc on doit recréer avec le pourcentage
+          // En fait, on peut passer directement les pourcentages dans un objet temporaire
+          const tempDataWithPercentage = {
+            ...tempReportData,
+            kpis: {
+              vue_ensemble: {
+                ...tempReportData.kpis.vue_ensemble,
+                previous: kpis.vue_ensemble.previous, // Utiliser le pourcentage d'évolution
+              },
+              appels: {
+                ...tempReportData.kpis.appels,
+                previous: kpis.appels.previous,
+              },
+              clics_web: {
+                ...tempReportData.kpis.clics_web,
+                previous: kpis.clics_web.previous,
+              },
+              itineraire: {
+                ...tempReportData.kpis.itineraire,
+                previous: kpis.itineraire.previous,
+              },
+            },
+          } as any; // Utiliser as any car le type attend une valeur absolue
+
+          const generatedAnalyses = generateAllAnalysisTexts(tempDataWithPercentage, textTemplates);
           
           setKpis(prev => ({
             vue_ensemble: {
@@ -413,6 +583,15 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
         throw new Error('Client non trouvé');
       }
 
+      // Convertir les pourcentages d'évolution en valeurs absolues pour GBPReportData
+      // Dans kpis, previous est un pourcentage d'évolution, mais GBPReportData attend une valeur absolue
+      const convertPercentageToValue = (current: number, percentage: number | null): number => {
+        if (percentage === null || percentage === 0 || !current) return current;
+        // Si percentage = 15.0 (pour +15%), alors current = previous * (1 + 15/100)
+        // Donc previous = current / (1 + percentage/100)
+        return current / (1 + percentage / 100);
+      };
+
       // Préparer les données du rapport (rapport mensuel uniquement)
       const reportData: GBPReportData = {
         client: {
@@ -425,7 +604,28 @@ export function CreateReportModal({ open, onOpenChange, clientId, onSuccess }: C
           month: selectedMonth,
           year: year,
         },
-        kpis: kpis,
+        kpis: {
+          vue_ensemble: {
+            current: kpis.vue_ensemble.current,
+            previous: convertPercentageToValue(kpis.vue_ensemble.current, kpis.vue_ensemble.previous),
+            analysis: kpis.vue_ensemble.analysis,
+          },
+          appels: {
+            current: kpis.appels.current,
+            previous: convertPercentageToValue(kpis.appels.current, kpis.appels.previous),
+            analysis: kpis.appels.analysis,
+          },
+          clics_web: {
+            current: kpis.clics_web.current,
+            previous: convertPercentageToValue(kpis.clics_web.current, kpis.clics_web.previous),
+            analysis: kpis.clics_web.analysis,
+          },
+          itineraire: {
+            current: kpis.itineraire.current,
+            previous: convertPercentageToValue(kpis.itineraire.current, kpis.itineraire.previous),
+            analysis: kpis.itineraire.analysis,
+          },
+        },
         screenshots: {
           vue_ensemble: screenshots.vue_ensemble || '',
           appels: screenshots.appels || '',

@@ -9,34 +9,42 @@ import type { TextTemplates } from './gbpTemplateConfig';
 
 /**
  * Calcule l'évolution d'un KPI
+ * @param current Valeur absolue actuelle (ex: 150)
+ * @param previousPercentage Pourcentage d'évolution depuis la période précédente (ex: 15.0 pour +15%, -10.0 pour -10%)
+ * @returns Évolution calculée avec différence, pourcentage et direction
  */
-export function calculateEvolution(current: number, previous: number): {
+export function calculateEvolution(current: number, previousPercentage: number): {
   difference: number;
   percentage: number;
   direction: 'positive' | 'positive_moderate' | 'stable' | 'negative_moderate' | 'negative';
 } {
-  if (previous === 0) {
+  // Si previousPercentage est 0, pas d'évolution
+  if (previousPercentage === 0) {
     return {
-      difference: current,
-      percentage: current > 0 ? 100 : 0,
-      direction: current > 0 ? 'positive' : 'stable',
+      difference: 0,
+      percentage: 0,
+      direction: 'stable',
     };
   }
+  
+  // Calculer la valeur précédente à partir du pourcentage d'évolution
+  // Si previousPercentage = 15.0 (pour +15%), alors current = previousValue * (1 + 15/100)
+  // Donc previousValue = current / (1 + previousPercentage/100)
+  const previousValue = current / (1 + previousPercentage / 100);
+  const difference = current - previousValue;
+  const percentage = Math.abs(previousPercentage); // Le pourcentage d'évolution est déjà connu
 
-  const difference = current - previous;
-  const percentage = (difference / previous) * 100;
-
-  // Déterminer la direction basée sur le pourcentage
-  if (percentage > 10) {
-    return { difference, percentage: Math.abs(percentage), direction: 'positive' };
-  } else if (percentage > 0) {
-    return { difference, percentage: Math.abs(percentage), direction: 'positive_moderate' };
-  } else if (percentage >= -10) {
-    return { difference, percentage: Math.abs(percentage), direction: 'stable' };
-  } else if (percentage > -20) {
-    return { difference, percentage: Math.abs(percentage), direction: 'negative_moderate' };
+  // Déterminer la direction basée sur le pourcentage d'évolution
+  if (previousPercentage > 10) {
+    return { difference, percentage, direction: 'positive' };
+  } else if (previousPercentage > 0) {
+    return { difference, percentage, direction: 'positive_moderate' };
+  } else if (previousPercentage >= -10 && previousPercentage <= 0) {
+    return { difference, percentage, direction: 'stable' };
+  } else if (previousPercentage > -20) {
+    return { difference, percentage, direction: 'negative_moderate' };
   } else {
-    return { difference, percentage: Math.abs(percentage), direction: 'negative' };
+    return { difference, percentage, direction: 'negative' };
   }
 }
 
@@ -105,10 +113,15 @@ export function generateAnalysisText(
     return generateDefaultAnalysis(kpiType, kpi.current, kpi.previous, evolution);
   }
 
+  // Calculer la valeur précédente à partir du pourcentage d'évolution
+  // previous dans kpi est maintenant un pourcentage d'évolution, pas une valeur absolue
+  const previousValue = kpi.current / (1 + kpi.previous / 100);
+  
   // Préparer les variables pour le remplissage
   const variables: Record<string, string | number> = {
     current: kpi.current.toLocaleString('fr-FR'),
-    previous: kpi.previous.toLocaleString('fr-FR'),
+    previous: previousValue.toLocaleString('fr-FR'), // Valeur absolue calculée
+    previous_percentage: kpi.previous >= 0 ? `+${kpi.previous.toFixed(1)}%` : `${kpi.previous.toFixed(1)}%`, // Pourcentage d'évolution formaté
     difference: evolution.difference >= 0 
       ? `+${evolution.difference.toLocaleString('fr-FR')}` 
       : evolution.difference.toLocaleString('fr-FR'),

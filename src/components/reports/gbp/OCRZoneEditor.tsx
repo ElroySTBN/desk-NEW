@@ -384,13 +384,15 @@ export function OCRZoneEditor({
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
             <p className="font-semibold text-blue-900 mb-2">Comment utiliser :</p>
             <ol className="list-decimal list-inside space-y-1 text-blue-800">
-              <li><strong>Clic gauche + glisser</strong> = Zone "Current" (valeur actuelle, en vert)</li>
-              <li><strong>Clic droit + glisser</strong> = Zone "Previous" (valeur précédente, en bleu)</li>
-              <li>Dessinez un rectangle autour du chiffre que vous voulez extraire</li>
+              <li><strong>Clic gauche + glisser</strong> = Zone "Current" (chiffre absolu, en vert)</li>
+              <li><strong>Clic droit + glisser</strong> = Zone "Previous" (pourcentage d'évolution, en bleu)</li>
+              <li>Dessinez un rectangle autour de la zone à extraire</li>
+              <li>Zone verte = <strong>chiffre absolu</strong> (ex: 150)</li>
+              <li>Zone bleue = <strong>pourcentage d'évolution</strong> (ex: +15% ou -10%)</li>
               <li>Vous devez définir les <strong>deux zones</strong> avant de pouvoir enregistrer</li>
             </ol>
             <p className="mt-2 text-blue-700">
-              💡 <strong>Astuce :</strong> Utilisez une capture d'écran de votre dashboard GBP pour voir exactement où se trouvent les chiffres
+              💡 <strong>Astuce :</strong> Utilisez une capture d'écran de votre dashboard GBP pour voir exactement où se trouvent les chiffres et les pourcentages
             </p>
           </div>
         </div>
@@ -442,27 +444,27 @@ export function OCRZoneEditor({
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <Label className="text-sm">Current</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <Label className="text-sm">Previous</Label>
-          </div>
-        </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-green-500 rounded"></div>
+                    <Label className="text-sm">Current (chiffre)</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                    <Label className="text-sm">Previous (pourcentage)</Label>
+                  </div>
+                </div>
 
-        {zones.current && (
-          <div className="text-sm">
-            <strong>Current:</strong> x={Math.round(zones.current.x)}, y={Math.round(zones.current.y)}, w={Math.round(zones.current.width)}, h={Math.round(zones.current.height)}
-          </div>
-        )}
-        {zones.previous && (
-          <div className="text-sm">
-            <strong>Previous:</strong> x={Math.round(zones.previous.x)}, y={Math.round(zones.previous.y)}, w={Math.round(zones.previous.width)}, h={Math.round(zones.previous.height)}
-          </div>
-        )}
+                {zones.current && (
+                  <div className="text-sm">
+                    <strong>Current (chiffre):</strong> x={Math.round(zones.current.x)}, y={Math.round(zones.current.y)}, w={Math.round(zones.current.width)}, h={Math.round(zones.current.height)}
+                  </div>
+                )}
+                {zones.previous && (
+                  <div className="text-sm">
+                    <strong>Previous (pourcentage):</strong> x={Math.round(zones.previous.x)}, y={Math.round(zones.previous.y)}, w={Math.round(zones.previous.width)}, h={Math.round(zones.previous.height)}
+                  </div>
+                )}
 
         <div className="flex gap-2">
           <Button onClick={handleSave} disabled={!zones.current || !zones.previous}>

@@ -118,6 +118,34 @@ export function parseNumberFromOCR(text: string): number | null {
 }
 
 /**
+ * Parse un pourcentage depuis le texte OCR
+ * Gère les formats : "+15%", "-10%", "15%", "+ 15 %", etc.
+ * Retourne un nombre décimal (ex: 15.0 pour "+15%", -10.0 pour "-10%")
+ */
+export function parsePercentageFromOCR(text: string): number | null {
+  if (!text) return null;
+  
+  // Nettoyer le texte : enlever les espaces, garder seulement les chiffres, signes, pourcentage
+  const cleaned = text
+    .replace(/\s/g, '') // Enlever tous les espaces
+    .replace(/[^\d,.\-+%]/g, '') // Garder seulement chiffres, virgules, points, tirets, signes plus, pourcentage
+    .replace(/,/g, '.'); // Remplacer virgules par points
+  
+  // Chercher un pourcentage avec signe optionnel
+  // Formats supportés : "+15%", "-10%", "15%", "+15", "-10", etc.
+  const match = cleaned.match(/([+-]?)(\d+(?:\.\d+)?)%?/);
+  if (match) {
+    const sign = match[1] || '+';
+    const number = parseFloat(match[2]);
+    if (!isNaN(number)) {
+      return sign === '-' ? -number : number;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Extrait un nombre depuis une zone spécifique
  */
 export async function extractNumberFromZone(
@@ -126,6 +154,17 @@ export async function extractNumberFromZone(
 ): Promise<number | null> {
   const result = await extractTextFromZone(imageSource, zone);
   return parseNumberFromOCR(result.text);
+}
+
+/**
+ * Extrait un pourcentage depuis une zone spécifique
+ */
+export async function extractPercentageFromZone(
+  imageSource: string | File | Blob,
+  zone: OCRZone
+): Promise<number | null> {
+  const result = await extractTextFromZone(imageSource, zone);
+  return parsePercentageFromOCR(result.text);
 }
 
 /**
