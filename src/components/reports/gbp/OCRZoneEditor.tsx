@@ -54,8 +54,14 @@ export function OCRZoneEditor({
     // Réinitialiser canvasReady quand imageUrl change
     setCanvasReady(false);
     
+    let cancelled = false;
+    let timer1: NodeJS.Timeout | null = null;
+    let timer2: NodeJS.Timeout | null = null;
+    
     // Utiliser requestAnimationFrame pour s'assurer que le DOM est mis à jour
     const rafId = requestAnimationFrame(() => {
+      if (cancelled) return;
+      
       // Vérifier immédiatement si le canvas est disponible
       if (canvasRef.current) {
         setCanvasReady(true);
@@ -63,26 +69,32 @@ export function OCRZoneEditor({
       }
       
       // Sinon, attendre un peu et réessayer
-      const timer = setTimeout(() => {
+      timer1 = setTimeout(() => {
+        if (cancelled) return;
+        
         if (canvasRef.current) {
           setCanvasReady(true);
         } else {
           // Si toujours pas disponible, réessayer une dernière fois
-          const retryTimer = setTimeout(() => {
+          timer2 = setTimeout(() => {
+            if (cancelled) return;
+            
             if (canvasRef.current) {
               setCanvasReady(true);
             } else {
               console.warn('Canvas non disponible après plusieurs tentatives');
             }
           }, 100);
-          return () => clearTimeout(retryTimer);
         }
       }, 50);
-      
-      return () => clearTimeout(timer);
     });
     
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      if (timer1) clearTimeout(timer1);
+      if (timer2) clearTimeout(timer2);
+    };
   }, [imageUrl]);
 
   // Fonction pour dessiner une zone
