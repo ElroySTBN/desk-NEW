@@ -122,6 +122,9 @@ export function OCRZoneEditor({
     setCanvasReady(false);
     
     let cancelled = false;
+    let retryTimer: NodeJS.Timeout | null = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 20; // Maximum 20 tentatives (2 secondes au total)
     
     // Attendre que le canvas soit monté, puis charger l'image
     const checkAndLoadImage = () => {
@@ -130,16 +133,21 @@ export function OCRZoneEditor({
       // Vérifier que le canvas est disponible
       const canvas = canvasRef.current;
       if (!canvas) {
-        // Si le canvas n'est pas encore disponible, réessayer après un court délai
-        setTimeout(checkAndLoadImage, 100);
-        return;
+        retryCount++;
+        // Si le canvas n'est pas encore disponible et qu'on n'a pas dépassé le nombre max de tentatives, réessayer
+        if (retryCount < MAX_RETRIES) {
+          retryTimer = setTimeout(checkAndLoadImage, 100);
+          return;
+        } else {
+          // Si on a dépassé le nombre max de tentatives, afficher une erreur
+          setImageError('Canvas non disponible après plusieurs tentatives. Veuillez réessayer.');
+          setImageLoading(false);
+          return;
+        }
       }
 
       // Marquer le canvas comme prêt
       setCanvasReady(true);
-
-      // Commencer le chargement de l'image
-      setImageLoading(true);
 
       // Utiliser fetch pour contourner les problèmes CORS
       const loadImageWithFetch = async () => {
@@ -160,6 +168,11 @@ export function OCRZoneEditor({
           const img = new Image();
           
           img.onload = () => {
+            if (cancelled) {
+              URL.revokeObjectURL(objectUrl);
+              return;
+            }
+            
             URL.revokeObjectURL(objectUrl);
             
             // Vérifier à nouveau que le canvas est disponible
@@ -183,6 +196,8 @@ export function OCRZoneEditor({
             
             // Utiliser requestAnimationFrame pour s'assurer que le canvas est prêt
             requestAnimationFrame(() => {
+              if (cancelled) return;
+              
               const canvasToDraw = canvasRef.current;
               if (!canvasToDraw) {
                 setImageError('Canvas non disponible lors du dessin');
@@ -275,19 +290,25 @@ export function OCRZoneEditor({
         }
       };
 
-      // Attendre un peu que le canvas soit complètement monté
-      requestAnimationFrame(() => {
-        if (cancelled) return;
-        loadImageWithFetch();
-      });
+      // Commencer le chargement de l'image une fois que le canvas est prêt
+      loadImageWithFetch();
     };
 
-    // Commencer la vérification après un court délai pour laisser le DOM se mettre à jour
-    const timer = setTimeout(checkAndLoadImage, 100);
+    // Utiliser requestAnimationFrame deux fois pour s'assurer que le DOM est complètement mis à jour
+    // (React rend d'abord le DOM, puis requestAnimationFrame s'exécute après le rendu)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled) {
+          checkAndLoadImage();
+        }
+      });
+    });
     
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+      }
     };
   }, [imageUrl]);
 
