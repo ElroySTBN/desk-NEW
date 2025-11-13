@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -107,50 +107,54 @@ export function OCRZoneEditor({
     }
   }, [zones, scale, drawCanvas, imageLoading, imageError]);
 
+  // Vérifier que le canvas est monté dans le DOM (s'exécute après le rendu)
+  useLayoutEffect(() => {
+    if (!imageUrl) {
+      setCanvasReady(false);
+      return;
+    }
+
+    // Vérifier immédiatement si le canvas est disponible (après le rendu du DOM)
+    const canvas = canvasRef.current;
+    if (canvas) {
+      setCanvasReady(true);
+    } else {
+      // Si le canvas n'est pas encore disponible, attendre un peu et réessayer
+      const timer = setTimeout(() => {
+        if (canvasRef.current) {
+          setCanvasReady(true);
+        } else {
+          setCanvasReady(false);
+        }
+      }, 50);
+      
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [imageUrl]);
+
   // Charger l'image et calculer l'échelle avec gestion CORS améliorée
   useEffect(() => {
     if (!imageUrl) {
       setImageError('Aucune URL d\'image fournie');
       setImageLoading(false);
-      setCanvasReady(false);
       return;
     }
 
-    // Réinitialiser les états
+    // Ne charger l'image que lorsque le canvas est prêt
+    if (!canvasReady) {
+      return;
+    }
+
+    // Réinitialiser les états et commencer le chargement
     setImageError(null);
     setImageLoading(true);
-    setCanvasReady(false);
     
     let cancelled = false;
-    let retryTimer: NodeJS.Timeout | null = null;
-    let retryCount = 0;
-    const MAX_RETRIES = 20; // Maximum 20 tentatives (2 secondes au total)
-    
-    // Attendre que le canvas soit monté, puis charger l'image
-    const checkAndLoadImage = () => {
-      if (cancelled) return;
-      
-      // Vérifier que le canvas est disponible
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        retryCount++;
-        // Si le canvas n'est pas encore disponible et qu'on n'a pas dépassé le nombre max de tentatives, réessayer
-        if (retryCount < MAX_RETRIES) {
-          retryTimer = setTimeout(checkAndLoadImage, 100);
-          return;
-        } else {
-          // Si on a dépassé le nombre max de tentatives, afficher une erreur
-          setImageError('Canvas non disponible après plusieurs tentatives. Veuillez réessayer.');
-          setImageLoading(false);
-          return;
-        }
-      }
 
-      // Marquer le canvas comme prêt
-      setCanvasReady(true);
-
-      // Utiliser fetch pour contourner les problèmes CORS
-      const loadImageWithFetch = async () => {
+    // Utiliser fetch pour contourner les problèmes CORS
+    const loadImageWithFetch = async () => {
         try {
           // Essayer d'abord avec fetch pour contourner CORS
           const response = await fetch(imageUrl, {
