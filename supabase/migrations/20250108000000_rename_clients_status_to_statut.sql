@@ -43,7 +43,36 @@ END $$;
 -- ============================================================================
 DO $$ 
 BEGIN
+  -- Si montant_mensuel existe déjà, ne rien faire
   IF EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'clients' 
+    AND column_name = 'montant_mensuel'
+  ) THEN
+    -- Si monthly_amount existe aussi, copier les données puis supprimer monthly_amount
+    IF EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'clients' 
+      AND column_name = 'monthly_amount'
+    ) THEN
+      -- Copier les données de monthly_amount vers montant_mensuel si montant_mensuel est NULL
+      UPDATE public.clients 
+      SET montant_mensuel = monthly_amount 
+      WHERE monthly_amount IS NOT NULL AND montant_mensuel IS NULL;
+      
+      -- Supprimer monthly_amount
+      ALTER TABLE public.clients 
+      DROP COLUMN monthly_amount;
+      RAISE NOTICE 'Données de monthly_amount copiées vers montant_mensuel, monthly_amount supprimée';
+    ELSE
+      RAISE NOTICE 'Colonne montant_mensuel existe déjà, aucune action nécessaire';
+    END IF;
+  -- Si montant_mensuel n'existe pas mais monthly_amount existe, renommer
+  ELSIF EXISTS (
     SELECT 1 
     FROM information_schema.columns 
     WHERE table_schema = 'public' 
@@ -53,13 +82,8 @@ BEGIN
     ALTER TABLE public.clients 
     RENAME COLUMN monthly_amount TO montant_mensuel;
     RAISE NOTICE 'Colonne monthly_amount renommée en montant_mensuel';
-  ELSIF NOT EXISTS (
-    SELECT 1 
-    FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-    AND table_name = 'clients' 
-    AND column_name = 'montant_mensuel'
-  ) THEN
+  -- Si aucune des deux n'existe, créer montant_mensuel
+  ELSE
     ALTER TABLE public.clients 
     ADD COLUMN montant_mensuel DECIMAL(10,2);
     RAISE NOTICE 'Colonne montant_mensuel créée';
@@ -71,7 +95,36 @@ END $$;
 -- ============================================================================
 DO $$ 
 BEGIN
+  -- Si date_debut_contrat existe déjà, ne rien faire
   IF EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'clients' 
+    AND column_name = 'date_debut_contrat'
+  ) THEN
+    -- Si start_date existe aussi, copier les données puis supprimer start_date
+    IF EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'clients' 
+      AND column_name = 'start_date'
+    ) THEN
+      -- Copier les données de start_date vers date_debut_contrat si date_debut_contrat est NULL
+      UPDATE public.clients 
+      SET date_debut_contrat = start_date 
+      WHERE start_date IS NOT NULL AND date_debut_contrat IS NULL;
+      
+      -- Supprimer start_date
+      ALTER TABLE public.clients 
+      DROP COLUMN start_date;
+      RAISE NOTICE 'Données de start_date copiées vers date_debut_contrat, start_date supprimée';
+    ELSE
+      RAISE NOTICE 'Colonne date_debut_contrat existe déjà, aucune action nécessaire';
+    END IF;
+  -- Si date_debut_contrat n'existe pas mais start_date existe, renommer
+  ELSIF EXISTS (
     SELECT 1 
     FROM information_schema.columns 
     WHERE table_schema = 'public' 
@@ -81,13 +134,8 @@ BEGIN
     ALTER TABLE public.clients 
     RENAME COLUMN start_date TO date_debut_contrat;
     RAISE NOTICE 'Colonne start_date renommée en date_debut_contrat';
-  ELSIF NOT EXISTS (
-    SELECT 1 
-    FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-    AND table_name = 'clients' 
-    AND column_name = 'date_debut_contrat'
-  ) THEN
+  -- Si aucune des deux n'existe, créer date_debut_contrat
+  ELSE
     ALTER TABLE public.clients 
     ADD COLUMN date_debut_contrat DATE;
     RAISE NOTICE 'Colonne date_debut_contrat créée';
@@ -99,7 +147,36 @@ END $$;
 -- ============================================================================
 DO $$ 
 BEGIN
+  -- Si date_anniversaire_abonnement existe déjà, ne rien faire
   IF EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'clients' 
+    AND column_name = 'date_anniversaire_abonnement'
+  ) THEN
+    -- Si next_invoice_date existe aussi, copier les données puis supprimer next_invoice_date
+    IF EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'clients' 
+      AND column_name = 'next_invoice_date'
+    ) THEN
+      -- Copier les données de next_invoice_date vers date_anniversaire_abonnement si date_anniversaire_abonnement est NULL
+      UPDATE public.clients 
+      SET date_anniversaire_abonnement = next_invoice_date 
+      WHERE next_invoice_date IS NOT NULL AND date_anniversaire_abonnement IS NULL;
+      
+      -- Supprimer next_invoice_date
+      ALTER TABLE public.clients 
+      DROP COLUMN next_invoice_date;
+      RAISE NOTICE 'Données de next_invoice_date copiées vers date_anniversaire_abonnement, next_invoice_date supprimée';
+    ELSE
+      RAISE NOTICE 'Colonne date_anniversaire_abonnement existe déjà, aucune action nécessaire';
+    END IF;
+  -- Si date_anniversaire_abonnement n'existe pas mais next_invoice_date existe, renommer
+  ELSIF EXISTS (
     SELECT 1 
     FROM information_schema.columns 
     WHERE table_schema = 'public' 
@@ -109,13 +186,8 @@ BEGIN
     ALTER TABLE public.clients 
     RENAME COLUMN next_invoice_date TO date_anniversaire_abonnement;
     RAISE NOTICE 'Colonne next_invoice_date renommée en date_anniversaire_abonnement';
-  ELSIF NOT EXISTS (
-    SELECT 1 
-    FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-    AND table_name = 'clients' 
-    AND column_name = 'date_anniversaire_abonnement'
-  ) THEN
+  -- Si aucune des deux n'existe, créer date_anniversaire_abonnement
+  ELSE
     ALTER TABLE public.clients 
     ADD COLUMN date_anniversaire_abonnement DATE;
     RAISE NOTICE 'Colonne date_anniversaire_abonnement créée';
