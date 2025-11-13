@@ -294,27 +294,13 @@ export function OCRZoneEditor({
         }
       };
 
-      // Commencer le chargement de l'image une fois que le canvas est prêt
-      loadImageWithFetch();
-    };
-
-    // Utiliser requestAnimationFrame deux fois pour s'assurer que le DOM est complètement mis à jour
-    // (React rend d'abord le DOM, puis requestAnimationFrame s'exécute après le rendu)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!cancelled) {
-          checkAndLoadImage();
-        }
-      });
-    });
+    // Commencer le chargement de l'image
+    loadImageWithFetch();
     
     return () => {
       cancelled = true;
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-      }
     };
-  }, [imageUrl]);
+  }, [imageUrl, canvasReady]);
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
