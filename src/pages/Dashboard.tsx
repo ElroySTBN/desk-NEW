@@ -9,12 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { format, differenceInHours, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AutoAlerts } from "@/components/dashboard/AutoAlerts";
+import { PipelineView } from "@/components/dashboard/PipelineView";
+import { ActionCenter } from "@/components/dashboard/ActionCenter";
 import { getTopPriorityTasks, getPriorityColor, getPriorityLabel, type Task } from "@/components/tasks/TaskPrioritizer";
 
 interface TaskWithClient extends Task {
   category?: string;
   client?: {
-  id: string;
+    id: string;
     name: string;
     company?: string;
   };
@@ -197,7 +199,7 @@ const Dashboard = () => {
     if (!dueDate) return "Aucune deadline";
     const date = new Date(dueDate);
     const hours = differenceInHours(date, new Date());
-    
+
     if (hours < 0) return "En retard";
     if (hours < 24) return `Dans ${hours}h`;
     const days = differenceInDays(date, new Date());
@@ -240,16 +242,15 @@ const Dashboard = () => {
             {carouselPhotos.map((photo, idx) => (
               <div
                 key={photo.id}
-                className={`absolute inset-0 transition-opacity duration-1000 ${
-                  idx === currentPhotoIndex ? "opacity-100" : "opacity-0"
-                }`}
+                className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentPhotoIndex ? "opacity-100" : "opacity-0"
+                  }`}
               >
                 <img
                   src={photo.photo_url}
                   alt={photo.photo_name || "Photo motivante"}
                   className="w-full h-full object-cover"
                 />
-                    </div>
+              </div>
             ))}
             {carouselPhotos.length > 1 && (
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
@@ -257,16 +258,21 @@ const Dashboard = () => {
                   <button
                     key={idx}
                     onClick={() => setCurrentPhotoIndex(idx)}
-                    className={`h-2 rounded-full transition-all ${
-                      idx === currentPhotoIndex ? "w-8 bg-primary" : "w-2 bg-primary/30"
-                    }`}
+                    className={`h-2 rounded-full transition-all ${idx === currentPhotoIndex ? "w-8 bg-primary" : "w-2 bg-primary/30"
+                      }`}
                   />
                 ))}
-                  </div>
-                    )}
-                  </div>
+              </div>
+            )}
+          </div>
         </Card>
       )}
+
+      {/* Action Center - CRITICAL UPDATES */}
+      <ActionCenter />
+
+      {/* Pipeline View - CLIENT STAGES */}
+      <PipelineView />
 
       {/* Vue Business */}
       <Card>
@@ -316,16 +322,16 @@ const Dashboard = () => {
               <div className="text-center py-8">
                 <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-500" />
                 <p className="text-muted-foreground">Aucune tâche urgente ! 🎉</p>
-            </div>
-          ) : (
+              </div>
+            ) : (
               <div className="space-y-3">
                 {urgentTasks.map((task) => {
                   const CategoryIcon = getCategoryIcon(task.category || '');
                   const priorityColor = getPriorityColor(task.priority, task.calculated_priority_score);
                   const priorityLabel = getPriorityLabel(task.priority, task.calculated_priority_score);
-                  
-                return (
-                  <div
+
+                  return (
+                    <div
                       key={task.id}
                       className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
                       onClick={() => task.client_id ? navigate(`/clients/${task.client_id}`) : navigate('/tasks')}
@@ -349,13 +355,13 @@ const Dashboard = () => {
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {formatTimeUntil(task.deadline || null)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
             {backlogTasks.length > 0 && (
               <div className="mt-4 pt-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
@@ -363,8 +369,8 @@ const Dashboard = () => {
                 </p>
               </div>
             )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
         {/* Accès Rapide */}
         <Card>
@@ -392,10 +398,10 @@ const Dashboard = () => {
             <Button
               variant="outline"
               className="h-14 text-base justify-start gap-3"
-              onClick={() => navigate("/library")}
+              onClick={() => navigate("/factory")}
             >
-              <FileText className="h-5 w-5" />
-              Créer du Contenu
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              Content Factory (AI)
             </Button>
             <Button
               variant="outline"

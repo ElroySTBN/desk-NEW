@@ -21,6 +21,8 @@ import GBPReports from "./pages/GBPReports";
 import ScanRedirect from "./pages/ScanRedirect";
 import ReviewFunnel from "./pages/ReviewFunnel";
 import NotFound from "./pages/NotFound";
+import ClientOnboardingView from "./pages/public/ClientOnboardingView";
+import ContentFactory from "./pages/ContentFactory";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
@@ -35,25 +37,27 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route element={<AppLayout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/clients/:id" element={<ClientDetails />} />
-          {/* Legacy routes - redirect to clients */}
-          <Route path="/organizations" element={<Clients />} />
-          <Route path="/organizations/:id" element={<ClientDetails />} />
-          <Route path="/organizations/:id/*" element={<ClientDetails />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/invoices" element={<Invoices />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/reports" element={<MonthlyReports />} />
-          <Route path="/reports/gbp" element={<GBPReports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/onboarding/create" element={<CreateOnboarding />} />
-          <Route path="/onboarding/export/:id" element={<OnboardingExport />} />
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/:id" element={<ClientDetails />} />
+              {/* Legacy routes - redirect to clients */}
+              <Route path="/organizations" element={<Clients />} />
+              <Route path="/organizations/:id" element={<ClientDetails />} />
+              <Route path="/organizations/:id/*" element={<ClientDetails />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/invoices" element={<Invoices />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/reports" element={<MonthlyReports />} />
+              <Route path="/reports/gbp" element={<GBPReports />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/onboarding/create" element={<CreateOnboarding />} />
+              <Route path="/onboarding/export/:id" element={<OnboardingExport />} />
+              <Route path="/factory" element={<ContentFactory />} />
             </Route>
             {/* Public routes (no layout) */}
             <Route path="/onboarding/form/:id" element={<OnboardingForm />} />
+            <Route path="/onboarding/client/:token" element={<ClientOnboardingView />} />
             <Route path="/scan/:employeeId" element={<ScanRedirect />} />
             <Route path="/review/:clientId" element={<ReviewFunnel />} />
             <Route path="*" element={<NotFound />} />
